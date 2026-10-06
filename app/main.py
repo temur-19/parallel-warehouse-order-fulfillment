@@ -66,3 +66,29 @@ async def create_transaction(
         "is_fraud": prediction["is_fraud"],
         "status": status,
     }
+
+
+@transaction_router.get('get/{transaction_id}/')
+async def get_transaction(transaction_id: int, db: AsyncSession = Depends(get_db)):
+    transaction = await db.get(Transaction, transaction_id)
+    if not transaction:
+        return {"error": "Transaction not found"}
+
+    fraud_result = await db.get(FraudResult, transaction_id)
+    if not fraud_result:
+        return {"error": "Fraud result not found for this transaction"}
+
+    return {
+        "transaction_id": transaction.id,
+        "user_id": transaction.user_id,
+        "amount": transaction.amount,
+        "currency": transaction.currency,
+        "country": transaction.country,
+        "city": transaction.city,
+        "transactions_last_10_min": transaction.transactions_last_10_min,
+        "is_new_device": transaction.is_new_device,
+        "created_at": transaction.created_at.isoformat(),
+        "risk_score": fraud_result.risk_score,
+        "status": fraud_result.status,
+        "reasons": fraud_result.reasons,
+    }
