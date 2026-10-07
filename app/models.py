@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
-from sqlalchemy.orm import Mapped, mapped_column , relationship, MappedColumn
+from sqlalchemy.orm import Mapped, mapped_column , relationship
 from datetime import datetime, timezone
 
 from app.database import Base
@@ -58,3 +58,15 @@ class FraudResult(Base):
     transaction: Mapped["Transaction"] = relationship(
         back_populates="fraud_result"
     )
+
+
+class User(Base):
+    __tablename__ = "users"
+    id:Mapped[int] = mapped_column(Integer, primary_key = True, index = True)
+    first_name:Mapped[str] = mapped_column(String(100),nullable=False)
+    last_name:Mapped[str] = mapped_column(String(100),nullable=False)
+    balance:Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    default=lambda: datetime.now(timezone.utc),
+    nullable=False)

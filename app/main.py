@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import create_tables, get_db
 from app.ml.predict import predict_transaction
-from app.models import FraudResult, Transaction
-from app.schemas import TransactionCreate
+from app.models import FraudResult, Transaction, User
+from app.schemas import TransactionCreate, UserCreate
 
 
 @asynccontextmanager
@@ -24,9 +24,11 @@ app = FastAPI(
 
 
 transaction_router = APIRouter(prefix="/transaction")
+user_router = APIRouter(prefix="/user")
 
 
 app.include_router(transaction_router)
+app.include_router(user_router)
 
 
 @transaction_router.post("/add/")
@@ -34,6 +36,10 @@ async def create_transaction(
     transaction_in: TransactionCreate,
     db: AsyncSession = Depends(get_db)
 ):
+    user = await db.get(User, transaction_in.user_id)
+    if not user:
+        return {"error": "User not found"}
+    
     prediction_data = Transaction(
         amount=transaction_in.amount,
         user_id=transaction_in.user_id,
@@ -92,3 +98,18 @@ async def get_transaction(transaction_id: int, db: AsyncSession = Depends(get_db
         "status": fraud_result.status,
         "reasons": fraud_result.reasons,
     }
+
+@user_router.post('/add/')
+async def create_user(
+    user_in: UserCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    user = User(
+        first_name=user_in.first_name,
+        last_name=user_in.last_name,
+        balance=user_in.balance
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
