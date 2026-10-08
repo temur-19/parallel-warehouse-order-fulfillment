@@ -6,8 +6,9 @@ from app.database import Base
 
 class Transaction(Base):
     __tablename__ = "transactions"
-    id: Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True,index=True,)   
-    user_id:Mapped[int] = mapped_column(Integer,index=True)
+    id: Mapped[int] = mapped_column(Integer,primary_key=True,autoincrement=True,index=True)   
+    sender_id:Mapped[int] = mapped_column(ForeignKey("users.id"),nullable=False,index=True)
+    receiver_id:Mapped[int] = mapped_column(ForeignKey("users.id"),nullable=False,index=True)
     amount:Mapped[float] = mapped_column(Float,nullable=False)
     currency:Mapped[str] = mapped_column(String(10), default='UZS')
     country: Mapped[str] = mapped_column(String(100),nullable=False)

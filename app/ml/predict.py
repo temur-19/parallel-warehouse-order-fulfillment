@@ -21,7 +21,7 @@ def _load_model() -> Pipeline:
         )
     model: Pipeline = joblib.load(MODEL_PATH)
     return model
-
+    
 
 async def predict_transaction(
     data: Mapping[str, Any], fraud_threshold: float = 0.5

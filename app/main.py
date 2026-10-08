@@ -36,32 +36,61 @@ async def create_transaction(
     transaction_in: TransactionCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    # user = await db.get(User, transaction_in.user_id)
-    # if not user:
-    #     return {"error": "User not found"}
-    
+    sender = await db.get(User, transaction_in.sender_id)
+    if not sender:
+        return {"error": "Sender not found"}
+    receiver = await db.get(User, transaction_in.receiver_id)
+    if not receiver:
+        return {"error": "Receiver not found"}
+
+    old_balance = sender.balance
+    oldbalance_dest = receiver.balance
+    if old_balance < transaction_in.amount:
+        return {"error": "Insufficient balance for the transaction"}
+    new_balance = old_balance - transaction_in.amount
+    sender.balance = new_balance
+    newbalance_dest = oldbalance_dest + transaction_in.amount
+    receiver.balance = newbalance_dest
+
     prediction_data = Transaction(
         amount=transaction_in.amount,
-        user_id=transaction_in.user_id,
+        sender_id=transaction_in.sender_id,
+        receiver_id=transaction_in.receiver_id,
         currency=transaction_in.currency,
         country=transaction_in.country,
         city=transaction_in.city,
         transactions_last_10_min=transaction_in.transactions_last_10_min,
         is_new_device=transaction_in.is_new_device,
     )
+    prediction_in = {
+                     'amount': transaction_in.amount,
+                     'sender_id': transaction_in.sender_id,
+                     'currency': transaction_in.currency,
+                     'country': transaction_in.country,
+                     'city': transaction_in.city,
+                     'transactions_last_10_min': transaction_in.transactions_last_10_min,
+                     'is_new_device': transaction_in.is_new_device,
+                     'step': transaction_in.step,
+                     'type': transaction_in.type,
+                     'oldbalanceOrg': old_balance,
+                     'newbalanceOrig': new_balance,
+                     'oldbalanceDest': 0.0,
+                     'newbalanceDest': 0.0,
+                     'isFlaggedFraud': transaction_in.is_flagged_fraud
+                     }
 
     db.add(prediction_data)
 
     await db.flush()
 
-    prediction = await predict_transaction(transaction_in.model_dump(by_alias=True))
+    prediction = await predict_transaction(prediction_in)
     status = "fraud" if prediction["is_fraud"] else "legitimate"
     fraud_result = FraudResult(
         transaction_id=prediction_data.id,
         risk_score=prediction["risk_score"],
         status=status,
     )
-
+    
     db.add(fraud_result)
 
     await db.commit()
@@ -86,7 +115,8 @@ async def get_transaction(transaction_id: int, db: AsyncSession = Depends(get_db
 
     return {
         "transaction_id": transaction.id,
-        "user_id": transaction.user_id,
+        "sender_id": transaction.sender_id,
+        "receiver_id": transaction.receiver_id,
         "amount": transaction.amount,
         "currency": transaction.currency,
         "country": transaction.country,
@@ -107,9 +137,14 @@ async def create_user(
     user = User(
         first_name=user_in.first_name,
         last_name=user_in.last_name,
-        balance=user_in.balance
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    return user
+    return {
+        'user.id':user.id,
+        'user.name':user.first_name,
+        'user.last_name':user.last_name,
+        'user.balance':user.balance,
+        'created_at':user.created_at    
+    }
