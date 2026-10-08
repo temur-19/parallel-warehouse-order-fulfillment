@@ -36,9 +36,9 @@ async def create_transaction(
     transaction_in: TransactionCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    user = await db.get(User, transaction_in.user_id)
-    if not user:
-        return {"error": "User not found"}
+    # user = await db.get(User, transaction_in.user_id)
+    # if not user:
+    #     return {"error": "User not found"}
     
     prediction_data = Transaction(
         amount=transaction_in.amount,
@@ -54,7 +54,7 @@ async def create_transaction(
 
     await db.flush()
 
-    prediction = predict_transaction(transaction_in.model_dump(by_alias=True))
+    prediction = await predict_transaction(transaction_in.model_dump(by_alias=True))
     status = "fraud" if prediction["is_fraud"] else "legitimate"
     fraud_result = FraudResult(
         transaction_id=prediction_data.id,
@@ -65,7 +65,7 @@ async def create_transaction(
     db.add(fraud_result)
 
     await db.commit()
-
+    print("aajhgasjghda", prediction)
     return {
         "transaction_id": prediction_data.id,
         "risk_score": prediction["risk_score"],

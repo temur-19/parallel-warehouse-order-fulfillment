@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
+from time import perf_counter
 
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -165,7 +167,18 @@ def train_model(
             ),
         ]
     )
+    serial_model = clone(model).set_params(classifier__n_jobs=1)
+    serial_started_at = perf_counter()
+    serial_model.fit(X_train, y_train)
+    serial_training_seconds = perf_counter() - serial_started_at
+    del serial_model
+
+    parallel_started_at = perf_counter()
     model.fit(X_train, y_train)
+    parallel_training_seconds = perf_counter() - parallel_started_at
+    available_workers = joblib.cpu_count()
+    speedup = serial_training_seconds / parallel_training_seconds
+    parallel_efficiency = speedup / available_workers * 100
 
     predictions = model.predict(X_test)
     classifier = model.named_steps["classifier"]
@@ -180,6 +193,19 @@ def train_model(
     print(f"Class distribution: {y.value_counts().sort_index().to_dict()}")
     print(f"Numeric features: {numeric_features}")
     print(f"Categorical features: {categorical_features}")
+    print()
+    print("Training parallelism:")
+    print(f"Available CPU workers: {available_workers}")
+    print(f"Serial training time (n_jobs=1): {serial_training_seconds:.2f} seconds")
+    print(
+        f"Parallel training time (n_jobs=-1): "
+        f"{parallel_training_seconds:.2f} seconds"
+    )
+    print(f"Parallel speedup: {speedup:.2f}x")
+    print(
+        f"Parallel efficiency: {parallel_efficiency:.1f}% "
+        "(speedup / available workers)"
+    )
     print()
     print(f"Accuracy: {accuracy_score(y_test, predictions):.4f}")
     print(f"Precision: {precision_score(y_test, predictions, zero_division=0):.4f}")

@@ -23,7 +23,7 @@ def _load_model() -> Pipeline:
     return model
 
 
-def predict_transaction(
+async def predict_transaction(
     data: Mapping[str, Any], fraud_threshold: float = 0.5
 ) -> dict[str, float | bool]:
     if not 0.0 <= fraud_threshold <= 1.0:
