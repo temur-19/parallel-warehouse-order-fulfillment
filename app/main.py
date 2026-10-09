@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 
+from asyncpg import transaction
 from fastapi import APIRouter, Depends, FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import create_tables, get_db
+from app.fraud.notification_bot import notify_transaction
 from app.ml.predict import predict_transaction
 from app.models import FraudResult, Transaction, User
 from app.schemas import TransactionCreate, UserCreate
@@ -76,7 +78,7 @@ async def create_transaction(
                      'newbalanceOrig': new_balance,
                      'oldbalanceDest': 0.0,
                      'newbalanceDest': 0.0,
-                     'isFlaggedFraud': transaction_in.is_flagged_fraud
+                     'isFlaggedFraud': transaction_in.is_flagged_fraud  
                      }
 
     db.add(prediction_data)
@@ -95,6 +97,27 @@ async def create_transaction(
 
     await db.commit()
     print("aajhgasjghda", prediction)
+    try:
+        await notify_transaction(
+            {
+            "id": prediction_data.id,
+            "sender_id": transaction_in.sender_id,
+            "receiver_id": transaction_in.receiver_id,
+            "amount": transaction_in.amount,
+            "currency": transaction_in.currency,
+            "city": transaction_in.city,
+            "risk_score": float(prediction["risk_score"]),
+            "is_fraud": bool(prediction["is_fraud"]),
+            "status": status,
+             }
+             )    
+    except Exception:
+        # Xatoni logga yozish kerak.
+        # Tranzaksiyani qayta ishlash siyosati
+        # loyihaning talablariga bog'liq.
+        pass
+
+
     return {
         "transaction_id": prediction_data.id,
         "risk_score": prediction["risk_score"],
