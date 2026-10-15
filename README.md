@@ -49,9 +49,10 @@ must contain `amount`, `currency`, `country`, `city`,
 must use `1` for fraud and `0` for legitimate transactions. `user_id` may be
 present in the CSV but is not used as a model feature. Categorical columns are
 encoded in the training pipeline, with infrequent values grouped to limit
-high-cardinality expansion. The fitted pipeline is saved to `app/ml/model.pkl`.
-The training script reports holdout accuracy, precision, recall, F1-score, and
-ROC-AUC.
+high-cardinality expansion. The parallel-reduce training experiment saves its
+averaged model to `app/ml/reduce_model.pkl`; `app.ml.predict.predict_transaction`
+continues to load `app/ml/model.pkl`. The training script reports holdout
+accuracy, precision, recall, F1-score, and ROC-AUC.
 
 `app.ml.predict.predict_transaction(data)` loads the saved model on first use
 and returns a fraud `risk_score` and `is_fraud` decision. Pass the model's

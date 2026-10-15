@@ -7,225 +7,474 @@ from time import perf_counter
 import joblib
 import numpy as np
 import pandas as pd
+
+from joblib import Parallel, delayed
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import (
     accuracy_score,
+    confusion_matrix,
     f1_score,
     precision_score,
     recall_score,
     roc_auc_score,
 )
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
+from parallel_reduce import ParallelReduceClassifier
+
+
+# ============================================================
+# SOZLAMALAR
+# ============================================================
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
 DATASET_PATH = (
     PROJECT_ROOT
     / "data"
     / "PS_20174392719_1491204439457_log.csv"
 )
-MODEL_PATH = Path(__file__).resolve().with_name("model.pkl")
+
+MODEL_PATH = Path(__file__).resolve().with_name("reduce_model.pkl")
+
 TARGET_COLUMN = "isFraud"
+
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
+TOTAL_ESTIMATORS = 100
+
 SAMPLE_ROWS_FOR_SCHEMA = 50_000
 MAX_CATEGORICAL_CARDINALITY = 100
 
 
-def _get_feature_columns(
-    sample: pd.DataFrame,
-    target_column: str,
-) -> tuple[list[str], list[str], list[str]]:
+def _fit_model_chunk(
+    model_template,
+    X_train,
+    y_train,
+    chunk_indices,
+    n_estimators,
+    random_state,
+):
+    model = clone(model_template)
+    model.set_params(
+        classifier__n_estimators=n_estimators,
+        classifier__random_state=random_state,
+    )
+    model.fit(
+        X_train.iloc[chunk_indices],
+        y_train.iloc[chunk_indices],
+    )
+    return model
+
+
+# ============================================================
+# XUSUSIYATLARNI ANIQLASH
+# ============================================================
+
+def get_feature_columns(sample, target_column):
     if target_column not in sample.columns:
         raise ValueError(
-            f"Target column {target_column!r} was not found in the dataset. "
-            f"Available columns: {list(sample.columns)}"
+            f"Datasetda '{target_column}' ustuni topilmadi!"
         )
 
-    candidate_columns = [column for column in sample.columns if column != target_column]
-    categorical_columns = sample[candidate_columns].select_dtypes(
-        include=["object", "category", "string"]
-    ).columns.tolist()
-    identifier_columns = [
+    candidate_columns = [
         column
-        for column in categorical_columns
-        if sample[column].nunique(dropna=True) > MAX_CATEGORICAL_CARDINALITY
+        for column in sample.columns
+        if column != target_column
     ]
-    feature_columns = [
-        column for column in candidate_columns if column not in identifier_columns
-    ]
-    categorical_features = [
-        column for column in categorical_columns if column in feature_columns
-    ]
-    numeric_features = [
-        column for column in feature_columns if column not in categorical_features
-    ]
+
+    categorical_features = []
+    numeric_features = []
+    excluded_features = []
+
+    for column in candidate_columns:
+        dtype = sample[column].dtype
+
+        if (
+            pd.api.types.is_object_dtype(dtype)
+            or isinstance(dtype, pd.CategoricalDtype)
+            or pd.api.types.is_string_dtype(dtype)
+        ):
+            unique_count = sample[column].nunique(dropna=True)
+
+            # Juda ko'p turli qiymatga ega kategorik ustunlarni chiqarib tashlash
+            if unique_count > MAX_CATEGORICAL_CARDINALITY:
+                excluded_features.append(column)
+                continue
+
+            categorical_features.append(column)
+
+        elif pd.api.types.is_numeric_dtype(dtype):
+            numeric_features.append(column)
+
+        else:
+            excluded_features.append(column)
+
+    feature_columns = numeric_features + categorical_features
 
     if not feature_columns:
-        raise ValueError(
-            "No usable feature columns remain after excluding high-cardinality "
-            "categorical identifiers."
-        )
+        raise ValueError("Model uchun mos xususiyatlar topilmadi!")
+
+    print("\n" + "=" * 60)
+    print("XUSUSIYATLAR TAHLILI")
+    print("=" * 60)
+
+    print(f"Raqamli ustunlar soni: {len(numeric_features)}")
+    print(f"Kategorik ustunlar soni: {len(categorical_features)}")
+    print(f"Chiqarib tashlangan ustunlar: {excluded_features}")
+
+    print(f"\nRaqamli ustunlar: {numeric_features}")
+    print(f"Kategorik ustunlar: {categorical_features}")
 
     return feature_columns, numeric_features, categorical_features
 
 
-def train_model(
-    dataset_path: Path = DATASET_PATH,
-    target_column: str = TARGET_COLUMN,
-    model_path: Path = MODEL_PATH,
-) -> Pipeline:
-    if not dataset_path.is_file():
-        available_datasets = sorted(
-            path.name for path in dataset_path.parent.glob("*.csv")
-        )
-        available_text = (
-            ", ".join(available_datasets) if available_datasets else "none"
-        )
+# ============================================================
+# PARALLEL MODEL O'QITISH
+# ============================================================
+
+def train_model():
+    total_start = perf_counter()
+
+    print("\n" + "=" * 60)
+    print("PARALLEL FRAUD DETECTION MODEL TRAINING")
+    print("=" * 60)
+
+    # 1. Dataset mavjudligini tekshirish
+    if not DATASET_PATH.exists():
         raise FileNotFoundError(
-            f"Training dataset not found: {dataset_path}\n"
-            f"CSV files currently in {dataset_path.parent}: {available_text}\n"
-            "Update DATASET_PATH to the CSV location and TARGET_COLUMN to its "
-            "label column."
+            f"Dataset topilmadi: {DATASET_PATH}"
         )
 
-    sample = pd.read_csv(dataset_path, nrows=SAMPLE_ROWS_FOR_SCHEMA)
-    feature_columns, numeric_features, categorical_features = _get_feature_columns(
-        sample, target_column
+    print(f"\nDataset: {DATASET_PATH}")
+    print(f"Model saqlanadigan joy: {MODEL_PATH}")
+
+    # 2. Datasetning kichik qismini o'qish
+    print("\nDataset strukturasi aniqlanmoqda...")
+
+    sample = pd.read_csv(
+        DATASET_PATH,
+        nrows=SAMPLE_ROWS_FOR_SCHEMA,
     )
-    columns_to_load = [*feature_columns, target_column]
-    data = pd.read_csv(dataset_path, usecols=columns_to_load)
 
-    if data[target_column].isna().any():
-        raise ValueError(f"Target column {target_column!r} contains missing values.")
+    original_columns = sample.columns.tolist()
 
-    X = data[feature_columns]
-    y = pd.to_numeric(data[target_column], errors="raise")
-    if set(y.unique()) != {0, 1}:
+    # 3. Feature ustunlarini aniqlash
+    (
+        feature_columns,
+        numeric_features,
+        categorical_features,
+    ) = get_feature_columns(sample, TARGET_COLUMN)
+
+    del sample
+
+    # 4. Kerakli ustunlarni to'liq o'qish
+    print("\nDataset to'liq yuklanmoqda...")
+
+    data = pd.read_csv(
+        DATASET_PATH,
+        usecols=feature_columns + [TARGET_COLUMN],
+    )
+
+    print("\n" + "=" * 60)
+    print("DATASET MA'LUMOTLARI")
+    print("=" * 60)
+
+    print(f"Qatorlar soni: {len(data):,}")
+    print(f"Datasetdagi original ustunlar: {len(original_columns)}")
+    print(f"Model uchun feature ustunlari: {len(feature_columns)}")
+    print(f"Target ustuni: {TARGET_COLUMN}")
+
+    # 5. Target qiymatlarini tekshirish
+    if data[TARGET_COLUMN].isna().any():
         raise ValueError(
-            f"Target column {target_column!r} must use 0 for legitimate and 1 "
-            f"for fraud; found: {sorted(y.unique().tolist())}"
+            f"'{TARGET_COLUMN}' ustunida bo'sh qiymatlar mavjud!"
         )
 
-    stratify = y if y.value_counts().min() >= 2 else None
-    if stratify is None:
-        warnings.warn(
-            "The least-populated target class has fewer than two rows; "
-            "performing a non-stratified train/test split.",
-            stacklevel=2,
+    data[TARGET_COLUMN] = pd.to_numeric(
+        data[TARGET_COLUMN],
+        errors="raise",
+    )
+
+    unique_targets = set(data[TARGET_COLUMN].unique())
+
+    if not unique_targets.issubset({0, 1}):
+        raise ValueError(
+            f"Target faqat 0 va 1 bo'lishi kerak. "
+            f"Topilgan qiymatlar: {unique_targets}"
         )
+
+    if len(unique_targets) != 2:
+        raise ValueError(
+            "Datasetda ikkala sinf ham bo'lishi kerak: "
+            "0 — oddiy tranzaksiya, 1 — firibgarlik."
+        )
+
+    # 6. X va y ni ajratish
+    X = data[feature_columns]
+    y = data[TARGET_COLUMN].astype("int8")
+
+    print("\nTarget taqsimoti:")
+    print(y.value_counts().sort_index().rename({
+        0: "Oddiy tranzaksiyalar (0)",
+        1: "Firibgarlik (1)",
+    }))
+
+    del data
+
+    # 7. Train va test qismlariga ajratish
+    print("\nTrain va test ma'lumotlari ajratilmoqda...")
 
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
         test_size=TEST_SIZE,
         random_state=RANDOM_STATE,
-        stratify=stratify,
+        stratify=y,
     )
 
-    numeric_pipeline = Pipeline(
-        steps=[("imputer", SimpleImputer(strategy="median"))]
-    )
-    categorical_pipeline = Pipeline(
-        steps=[
-            ("imputer", SimpleImputer(strategy="most_frequent")),
-            (
-                "encoder",
-                OneHotEncoder(
-                    handle_unknown="infrequent_if_exist",
-                    min_frequency=10,
-                    max_categories=100,
-                ),
+    print(f"X_train: {X_train.shape}")
+    print(f"X_test:  {X_test.shape}")
+    print(f"y_train: {y_train.shape}")
+    print(f"y_test:  {y_test.shape}")
+
+    del X, y
+
+    # 8. Raqamli ustunlar uchun preprocessing
+    numeric_pipeline = Pipeline([
+        (
+            "imputer",
+            SimpleImputer(strategy="median"),
+        ),
+    ])
+
+    # 9. Kategorik ustunlar uchun preprocessing
+    categorical_pipeline = Pipeline([
+        (
+            "imputer",
+            SimpleImputer(strategy="most_frequent"),
+        ),
+        (
+            "encoder",
+            OneHotEncoder(
+                handle_unknown="infrequent_if_exist",
+                min_frequency=10,
+                max_categories=100,
             ),
-        ]
-    )
+        ),
+    ])
+
+    transformers = []
+
+    if numeric_features:
+        transformers.append(
+            (
+                "numeric",
+                numeric_pipeline,
+                numeric_features,
+            )
+        )
+
+    if categorical_features:
+        transformers.append(
+            (
+                "categorical",
+                categorical_pipeline,
+                categorical_features,
+            )
+        )
+
     preprocessor = ColumnTransformer(
-        transformers=[
-            ("numeric", numeric_pipeline, numeric_features),
-            ("categorical", categorical_pipeline, categorical_features),
-        ],
+        transformers=transformers,
         remainder="drop",
         sparse_threshold=1.0,
     )
-    model = Pipeline(
-        steps=[
-            ("preprocessor", preprocessor),
-            (
-                "classifier",
-                RandomForestClassifier(
-                    n_estimators=100,
-                    max_depth=16,
-                    min_samples_leaf=2,
-                    class_weight="balanced_subsample",
-                    n_jobs=-1,
-                    random_state=RANDOM_STATE,
-                ),
+
+    # 10. Each worker trains a model on a separate stratified data chunk.
+    model_template = Pipeline([
+        (
+            "preprocessor",
+            preprocessor,
+        ),
+        (
+            "classifier",
+            RandomForestClassifier(
+                n_estimators=TOTAL_ESTIMATORS,
+                max_depth=16,
+                min_samples_leaf=2,
+                class_weight="balanced_subsample",
+                n_jobs=1,
+                random_state=RANDOM_STATE,
             ),
-        ]
-    )
-    serial_model = clone(model).set_params(classifier__n_jobs=1)
-    serial_started_at = perf_counter()
-    serial_model.fit(X_train, y_train)
-    serial_training_seconds = perf_counter() - serial_started_at
-    del serial_model
+        ),
+    ])
 
-    parallel_started_at = perf_counter()
-    model.fit(X_train, y_train)
-    parallel_training_seconds = perf_counter() - parallel_started_at
+    # ========================================================
+    # PARALLEL REDUCE O'QITISH
+    # ========================================================
+
     available_workers = joblib.cpu_count()
-    speedup = serial_training_seconds / parallel_training_seconds
-    parallel_efficiency = speedup / available_workers * 100
-
-    predictions = model.predict(X_test)
-    classifier = model.named_steps["classifier"]
-    fraud_class_indices = np.flatnonzero(classifier.classes_ == 1)
-    fraud_probabilities = model.predict_proba(X_test)[:, fraud_class_indices[0]]
-
-    print(f"Dataset shape: ({len(data)}, {len(sample.columns)})")
-    print(f"Features: {feature_columns}")
-    print(f"Target: {target_column}")
-    print(f"Train shape: {X_train.shape}")
-    print(f"Test shape: {X_test.shape}")
-    print(f"Class distribution: {y.value_counts().sort_index().to_dict()}")
-    print(f"Numeric features: {numeric_features}")
-    print(f"Categorical features: {categorical_features}")
-    print()
-    print("Training parallelism:")
-    print(f"Available CPU workers: {available_workers}")
-    print(f"Serial training time (n_jobs=1): {serial_training_seconds:.2f} seconds")
-    print(
-        f"Parallel training time (n_jobs=-1): "
-        f"{parallel_training_seconds:.2f} seconds"
+    minority_class_count = int(y_train.value_counts().min())
+    worker_count = min(
+        available_workers,
+        minority_class_count,
+        TOTAL_ESTIMATORS,
     )
-    print(f"Parallel speedup: {speedup:.2f}x")
-    print(
-        f"Parallel efficiency: {parallel_efficiency:.1f}% "
-        "(speedup / available workers)"
-    )
-    print()
-    print(f"Accuracy: {accuracy_score(y_test, predictions):.4f}")
-    print(f"Precision: {precision_score(y_test, predictions, zero_division=0):.4f}")
-    print(f"Recall: {recall_score(y_test, predictions, zero_division=0):.4f}")
-    print(f"F1-score: {f1_score(y_test, predictions, zero_division=0):.4f}")
-    print(f"ROC-AUC: {roc_auc_score(y_test, fraud_probabilities):.4f}")
 
-    model_path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, model_path)
-    try:
-        displayed_model_path = model_path.relative_to(PROJECT_ROOT)
-    except ValueError:
-        displayed_model_path = model_path
-    print(f"\nModel saved to: {displayed_model_path}")
+    print("\n" + "=" * 60)
+    print("PARALLEL REDUCE O'QITISH BOSHLANDI")
+    print("=" * 60)
+
+    print(f"Mavjud CPU workerlar: {available_workers}")
+
+    training_start = perf_counter()
+
+    if worker_count < 2:
+        chunks = [np.arange(len(y_train))]
+    else:
+        splitter = StratifiedKFold(
+            n_splits=worker_count,
+            shuffle=True,
+            random_state=RANDOM_STATE,
+        )
+        chunks = [
+            chunk_indices
+            for _, chunk_indices in splitter.split(X_train, y_train)
+        ]
+
+    base_estimators, extra_estimators = divmod(
+        TOTAL_ESTIMATORS,
+        len(chunks),
+    )
+    trees_per_chunk = [
+        base_estimators + (index < extra_estimators)
+        for index in range(len(chunks))
+    ]
+
+    print(f"Parallel workerlar: {len(chunks)}")
+    print(f"Random Forest daraxtlari jami: {sum(trees_per_chunk)}")
+    print(f"Daraxtlar bo'laklar bo'yicha: {trees_per_chunk}")
+
+    fitted_estimators = Parallel(
+        n_jobs=len(chunks),
+        prefer="threads",
+    )(
+        delayed(_fit_model_chunk)(
+            model_template,
+            X_train,
+            y_train,
+            chunk_indices,
+            n_estimators,
+            RANDOM_STATE + index,
+        )
+        for index, (chunk_indices, n_estimators) in enumerate(
+            zip(chunks, trees_per_chunk)
+        )
+    )
+    model = ParallelReduceClassifier(fitted_estimators)
+
+    parallel_training_seconds = (
+        perf_counter() - training_start
+    )
+
+    print("\n" + "=" * 60)
+    print("PARALLEL REDUCE O'QITISH TUGADI")
+    print("=" * 60)
+
+    print(
+        f"O'qitish vaqti: "
+        f"{parallel_training_seconds:.2f} sekund"
+    )
+
+    print(
+        f"O'qitish vaqti: "
+        f"{parallel_training_seconds / 60:.2f} minut"
+    )
+
+    print(f"Amalda ishlatilgan workerlar: {len(chunks)}")
+
+    # ========================================================
+    # MODELNI BAHOLASH
+    # ========================================================
+
+    print("\nTest ma'lumotlari orqali model tekshirilmoqda...")
+
+    y_pred = model.predict(X_test)
+
+    classes = list(model.classes_)
+    fraud_class_index = classes.index(1)
+
+    y_proba = model.predict_proba(X_test)[:, fraud_class_index]
+
+    accuracy = accuracy_score(y_test, y_pred)
+
+    precision = precision_score(
+        y_test,
+        y_pred,
+        zero_division=0,
+    )
+
+    recall = recall_score(
+        y_test,
+        y_pred,
+        zero_division=0,
+    )
+
+    f1 = f1_score(
+        y_test,
+        y_pred,
+        zero_division=0,
+    )
+
+    auc = roc_auc_score(y_test, y_proba)
+
+    print("\n" + "=" * 60)
+    print("MODEL BAHOLASH NATIJALARI")
+    print("=" * 60)
+
+    print(f"Accuracy:  {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall:    {recall:.4f}")
+    print(f"F1-score:  {f1:.4f}")
+    print(f"ROC-AUC:   {auc:.4f}")
+
+    print("\nConfusion Matrix:")
+    print(confusion_matrix(y_test, y_pred))
+
+    # ========================================================
+    # MODELNI SAQLASH
+    # ========================================================
+
+    print("\nModel saqlanmoqda...")
+
+    joblib.dump(model, MODEL_PATH)
+
+    total_seconds = perf_counter() - total_start
+
+    print("\n" + "=" * 60)
+    print("MODEL MUVAFFAQIYATLI SAQLANDI")
+    print("=" * 60)
+
+    print(f"Model manzili: {MODEL_PATH}")
+    print(f"Fayl mavjud: {MODEL_PATH.exists()}")
+    print(f"Umumiy bajarilish vaqti: {total_seconds:.2f} sekund")
+
     return model
 
 
-def main() -> None:
-    train_model()
-
+# ============================================================
+# DASTURNI ISHGA TUSHIRISH
+# ============================================================
 
 if __name__ == "__main__":
-    main()
+    warnings.filterwarnings(
+        "ignore",
+        category=UserWarning,
+    )
+
+    train_model()
