@@ -20,3 +20,4 @@ class UserCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     first_name: str
     last_name: str
+    balance: float = Field(default=0, ge=0)

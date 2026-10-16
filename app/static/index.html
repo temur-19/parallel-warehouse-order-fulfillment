@@ -1,0 +1,382 @@
+
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102a27">
+  <title>Flowline | Tranzaksiya nazorati</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+    :root {
+      color-scheme: light;
+      --ink: #172522;
+      --muted: #71807b;
+      --paper: #f3f6f2;
+      --surface: #ffffff;
+      --line: #e2e9e3;
+      --green: #176b52;
+      --green-dark: #102a27;
+      --lime: #c7ee79;
+      --red: #c34e40;
+      --shadow: 0 14px 40px rgba(24, 48, 39, .07);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'DM Sans', sans-serif;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .shell { min-height: 100vh; }
+    .topbar {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 0 clamp(20px, 6vw, 88px);
+      background: var(--green-dark);
+      color: white;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; font: 700 20px 'Space Grotesk', sans-serif; }
+    .brand-mark {
+      width: 32px; height: 32px; display: grid; place-items: center;
+      border-radius: 9px; background: var(--lime); color: var(--green-dark);
+      font-size: 17px;
+    }
+    .top-meta { display: flex; align-items: center; gap: 10px; color: #d0ddd7; font-size: 13px; }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 4px rgba(199, 238, 121, .13); }
+    main { max-width: 1180px; margin: 0 auto; padding: 48px 24px 64px; }
+    .intro { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 30px; }
+    .eyebrow { margin: 0 0 8px; color: var(--green); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 8px; font: 600 clamp(27px, 4vw, 38px) 'Space Grotesk', sans-serif; }
+    .subtitle { margin: 0; color: var(--muted); font-size: 15px; }
+    .api-pill { display: flex; align-items: center; gap: 9px; padding: 10px 13px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .api-pill b { color: var(--green); font-weight: 700; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 20px; align-items: start; }
+    .panel { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; padding: 21px 24px 17px; border-bottom: 1px solid var(--line); }
+    .panel-head h2 { margin: 0; font: 600 17px 'Space Grotesk', sans-serif; }
+    .step { color: var(--muted); font-size: 12px; }
+    .panel-body { padding: 22px 24px 24px; }
+    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .field { display: grid; gap: 7px; min-width: 0; }
+    .field.wide { grid-column: 1 / -1; }
+    label { color: #43514c; font-size: 12px; font-weight: 600; }
+    input, select {
+      width: 100%; min-height: 43px; padding: 10px 12px; border: 1px solid #dbe4dc;
+      border-radius: 5px; outline: none; background: #fff; color: var(--ink); font-size: 14px;
+      transition: border-color .16s, box-shadow .16s;
+    }
+    input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(23, 107, 82, .11); }
+    input::placeholder { color: #a2ada7; }
+    .form-actions { display: flex; align-items: center; gap: 12px; margin-top: 21px; }
+    .primary {
+      min-height: 44px; padding: 0 18px; border: 0; border-radius: 5px;
+      background: var(--green); color: white; font-weight: 700; transition: background .15s, transform .15s;
+    }
+    .primary:hover { background: #10563f; transform: translateY(-1px); }
+    .primary:disabled { cursor: wait; opacity: .65; transform: none; }
+    .helper { margin: 0; color: var(--muted); font-size: 12px; }
+    .result-panel { margin-top: 20px; padding: 18px 20px; border-left: 3px solid var(--green); background: #eff7ec; }
+    .result-panel.error { border-color: var(--red); background: #fff1ed; }
+    .result-title { margin: 0 0 5px; font-weight: 700; }
+    .result-copy { margin: 0; color: #53645c; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+    .result-panel[hidden] { display: none; }
+    .accounts { display: grid; gap: 11px; }
+    .account-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 6px; background: #fbfcfa; }
+    .account-name { display: block; margin-bottom: 4px; font-weight: 700; font-size: 13px; }
+    .account-id { color: var(--muted); font-size: 11px; }
+    .account-balance { flex: 0 0 auto; font: 600 14px 'Space Grotesk', sans-serif; }
+    .empty-state { padding: 18px 14px; border: 1px dashed #ced9d0; border-radius: 6px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .account-actions { display: flex; gap: 7px; }
+    .account-actions button { padding: 5px 8px; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--green); font-size: 11px; font-weight: 700; }
+    .account-actions button:hover { background: #eff7ec; }
+    .note { margin: 14px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .activity { margin-top: 20px; }
+    .activity-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+    .activity-row:last-child { border-bottom: 0; }
+    .activity-label { font-weight: 600; font-size: 13px; }
+    .activity-status { font-size: 12px; font-weight: 700; }
+    .activity-status.fraud { color: var(--red); }
+    .activity-status.legitimate { color: var(--green); }
+    .activity-meta { color: var(--muted); font-size: 11px; }
+    .activity-amount { grid-column: 2; grid-row: 2; color: var(--muted); font-size: 12px; text-align: right; }
+    .activity-empty { color: var(--muted); font-size: 13px; }
+    @media (max-width: 780px) {
+      main { padding-top: 34px; }
+      .layout { grid-template-columns: 1fr; }
+      .intro { align-items: start; flex-direction: column; }
+    }
+    @media (max-width: 480px) {
+      .topbar { min-height: 64px; padding: 0 18px; }
+      .top-meta { font-size: 11px; }
+      main { padding: 27px 15px 42px; }
+      .panel-head { padding: 17px 17px 14px; }
+      .panel-body { padding: 18px 17px; }
+      .field-grid { gap: 13px 10px; }
+      .field-grid.transaction-grid { grid-template-columns: 1fr; }
+      .form-actions { align-items: stretch; flex-direction: column; }
+      .form-actions .primary { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">↗</span> flowline</div>
+      <div class="top-meta"><span class="live-dot" aria-hidden="true"></span> Firibgarlik nazorati</div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">Operatsiyalar markazi</p>
+          <h1>Tranzaksiya nazorati</h1>
+          <p class="subtitle">Hisoblar yarating va to‘lov xavfini tekshiring.</p>
+        </div>
+        <div class="api-pill"><span class="live-dot" aria-hidden="true"></span> API <b id="api-state">tekshirilmoqda</b></div>
+      </section>
+
+      <div class="layout">
+        <div>
+          <section class="panel">
+            <div class="panel-head"><h2>Yangi tranzaksiya</h2><span class="step">01 / Tahlil</span></div>
+            <div class="panel-body">
+              <form id="transaction-form">
+                <div class="field-grid transaction-grid">
+                  <div class="field"><label for="sender-id">Jo‘natuvchi ID</label><input id="sender-id" name="sender_id" type="number" min="1" placeholder="Masalan, 1" required></div>
+                  <div class="field"><label for="receiver-id">Qabul qiluvchi ID</label><input id="receiver-id" name="receiver_id" type="number" min="1" placeholder="Masalan, 2" required></div>
+                  <div class="field"><label for="amount">Miqdor</label><input id="amount" name="amount" type="number" min="0.01" step="0.01" placeholder="250000" required></div>
+                  <div class="field"><label for="currency">Valyuta</label><select id="currency" name="currency"><option value="UZS">UZS</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
+                  <div class="field"><label for="country">Davlat</label><input id="country" name="country" value="Uzbekistan" required></div>
+                  <div class="field"><label for="city">Shahar</label><input id="city" name="city" value="Tashkent" required></div>
+                  <div class="field"><label for="recent-count">Oxirgi 10 daqiqadagi tranzaksiyalar</label><input id="recent-count" name="transactions_last_10_min" type="number" min="0" value="0" required></div>
+                  <div class="field"><label for="device">Qurilma</label><select id="device" name="is_new_device"><option value="false">Tanish qurilma</option><option value="true">Yangi qurilma</option></select></div>
+                  <div class="field"><label for="step">PaySim bosqichi</label><input id="step" name="step" type="number" min="0" value="1" required></div>
+                  <div class="field"><label for="type">Tranzaksiya turi</label><select id="type" name="type"><option value="TRANSFER">TRANSFER</option><option value="CASH_OUT">CASH_OUT</option><option value="PAYMENT">PAYMENT</option><option value="CASH_IN">CASH_IN</option><option value="DEBIT">DEBIT</option></select></div>
+                  <div class="field wide"><label for="flagged">Manbada oldindan firibgarlik belgisi</label><select id="flagged" name="isFlaggedFraud"><option value="0">Yo‘q</option><option value="1">Ha</option></select></div>
+                </div>
+                <div class="form-actions"><button class="primary" type="submit">Xavfni tekshirish</button><p class="helper">Natija modelning joriy risk bahosiga asoslanadi.</p></div>
+              </form>
+              <div id="transaction-result" class="result-panel" role="status" aria-live="polite" hidden></div>
+            </div>
+          </section>
+
+          <section class="panel activity">
+            <div class="panel-head"><h2>So‘nggi tahlillar</h2><span class="step">Ushbu seans</span></div>
+            <div class="panel-body" id="activity-list"><p class="activity-empty">Hozircha tahlil yo‘q.</p></div>
+          </section>
+        </div>
+
+        <aside>
+          <section class="panel">
+            <div class="panel-head"><h2>Hisob yaratish</h2><span class="step">02 / Hisoblar</span></div>
+            <div class="panel-body">
+              <form id="user-form">
+                <div class="field-grid">
+                  <div class="field"><label for="first-name">Ism</label><input id="first-name" name="first_name" placeholder="Ali" required></div>
+                  <div class="field"><label for="last-name">Familiya</label><input id="last-name" name="last_name" placeholder="Valiyev" required></div>
+                  <div class="field wide"><label for="opening-balance">Boshlang‘ich balans</label><input id="opening-balance" name="balance" type="number" min="0" step="0.01" value="1000000" required></div>
+                </div>
+                <div class="form-actions"><button class="primary" type="submit">Hisob qo‘shish</button></div>
+              </form>
+              <div id="user-result" class="result-panel" role="status" aria-live="polite" hidden></div>
+              <div class="activity" id="accounts-list"><p class="empty-state">Hali hisob qo‘shilmagan. Yaratilgan hisob ID’lari tranzaksiya maydonlariga avtomatik kiritiladi.</p></div>
+              <p class="note">Hisoblar serverda saqlanadi. Ro‘yxat joriy brauzer seansida ko‘rinadi.</p>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const accounts = [];
+    const transactions = [];
+    const apiState = document.querySelector('#api-state');
+
+    function showResult(element, title, message, isError = false) {
+      element.hidden = false;
+      element.classList.toggle('error', isError);
+      element.innerHTML = '';
+      const heading = document.createElement('p');
+      heading.className = 'result-title';
+      heading.textContent = title;
+      const copy = document.createElement('p');
+      copy.className = 'result-copy';
+      copy.textContent = message;
+      element.append(heading, copy);
+    }
+
+    async function postJson(path, payload) {
+      let response;
+      try {
+        response = await fetch(path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        throw new Error(`API bilan bog‘lanib bo‘lmadi: ${error.message}`);
+      }
+
+      const body = await response.text();
+      let data;
+      try {
+        data = body ? JSON.parse(body) : null;
+      } catch {
+        const excerpt = body.trim().slice(0, 200);
+        throw new Error(
+          `API JSON qaytarmadi (HTTP ${response.status})${excerpt ? `: ${excerpt}` : '; javob bo‘sh'}`,
+        );
+      }
+
+      if (data === null) {
+        throw new Error(`API bo‘sh javob qaytardi (HTTP ${response.status})`);
+      }
+      if (!response.ok || data.error) {
+        const detail = data.detail
+          ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
+          : data.error;
+        throw new Error(detail || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    function renderAccounts() {
+      const list = document.querySelector('#accounts-list');
+      list.innerHTML = '';
+      if (!accounts.length) {
+        list.innerHTML = '<p class="empty-state">Hali hisob qo‘shilmagan. Yaratilgan hisob ID’lari tranzaksiya maydonlariga avtomatik kiritiladi.</p>';
+        return;
+      }
+      for (const account of accounts) {
+        const row = document.createElement('div');
+        row.className = 'account-row';
+        const info = document.createElement('div');
+        const name = document.createElement('span');
+        name.className = 'account-name';
+        name.textContent = `${account.name}`;
+        const id = document.createElement('span');
+        id.className = 'account-id';
+        id.textContent = `ID ${account.id}`;
+        info.append(name, id);
+        const actions = document.createElement('div');
+        actions.className = 'account-actions';
+        for (const [label, field] of [['Jo‘natuvchi', 'sender-id'], ['Qabul qiluvchi', 'receiver-id']]) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = label;
+          button.title = `${label} sifatida tanlash`;
+          button.addEventListener('click', () => { document.getElementById(field).value = account.id; });
+          actions.append(button);
+        }
+        row.append(info, actions);
+        list.append(row);
+      }
+    }
+
+    function renderTransactions() {
+      const list = document.querySelector('#activity-list');
+      list.innerHTML = '';
+      if (!transactions.length) {
+        list.innerHTML = '<p class="activity-empty">Hozircha tahlil yo‘q.</p>';
+        return;
+      }
+      for (const transaction of transactions) {
+        const row = document.createElement('div');
+        row.className = 'activity-row';
+        const label = document.createElement('span');
+        label.className = 'activity-label';
+        label.textContent = `Tranzaksiya #${transaction.transaction_id}`;
+        const status = document.createElement('span');
+        status.className = `activity-status ${transaction.status}`;
+        status.textContent = transaction.status === 'fraud' ? 'Shubhali' : 'Ishonchli';
+        const meta = document.createElement('span');
+        meta.className = 'activity-meta';
+        meta.textContent = `Risk ${(Number(transaction.risk_score) * 100).toFixed(1)}%`;
+        const amount = document.createElement('span');
+        amount.className = 'activity-amount';
+        amount.textContent = `${Number(transaction.amount).toLocaleString('uz-UZ')} ${transaction.currency}`;
+        row.append(label, status, meta, amount);
+        list.append(row);
+      }
+    }
+
+    document.querySelector('#user-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button[type="submit"]');
+      const result = document.querySelector('#user-result');
+      button.disabled = true;
+      try {
+        const data = await postJson('/user/add/', {
+          first_name: form.first_name.value.trim(),
+          last_name: form.last_name.value.trim(),
+          balance: Number(form.balance.value),
+        });
+        const account = {
+          id: data['user.id'],
+          name: `${data['user.name']} ${data['user.last_name']}`,
+          balance: data['user.balance'],
+        };
+        accounts.unshift(account);
+        renderAccounts();
+        if (accounts.length === 1) document.querySelector('#sender-id').value = account.id;
+        else if (accounts.length === 2) document.querySelector('#receiver-id').value = account.id;
+        showResult(result, 'Hisob yaratildi', `${account.name} • ID ${account.id} • Balans ${Number(account.balance).toLocaleString('uz-UZ')}`);
+        form.reset();
+        form.balance.value = '1000000';
+      } catch (error) {
+        showResult(result, 'Hisob yaratilmadi', error.message, true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.querySelector('#transaction-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button[type="submit"]');
+      const result = document.querySelector('#transaction-result');
+      button.disabled = true;
+      try {
+        const data = await postJson('/transaction/add/', {
+          sender_id: Number(form.sender_id.value),
+          receiver_id: Number(form.receiver_id.value),
+          amount: Number(form.amount.value),
+          currency: form.currency.value,
+          country: form.country.value.trim(),
+          city: form.city.value.trim(),
+          transactions_last_10_min: Number(form.transactions_last_10_min.value),
+          is_new_device: form.is_new_device.value === 'true',
+          step: Number(form.step.value),
+          type: form.type.value,
+          isFlaggedFraud: Number(form.isFlaggedFraud.value),
+        });
+        const transaction = { ...data, amount: Number(form.amount.value), currency: form.currency.value };
+        transactions.unshift(transaction);
+        renderTransactions();
+        const verdict = data.is_fraud ? 'Shubhali tranzaksiya' : 'Tranzaksiya ishonchli';
+        showResult(result, verdict, `ID ${data.transaction_id} • Risk ${(Number(data.risk_score) * 100).toFixed(1)}% • Holat: ${data.status}`, Boolean(data.is_fraud));
+      } catch (error) {
+        showResult(result, 'Tahlil bajarilmadi', error.message, true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    fetch('/openapi.json').then((response) => {
+      if (!response.ok) throw new Error();
+      apiState.textContent = 'ulangan';
+    }).catch(() => { apiState.textContent = 'mavjud emas'; });
+  </script>
+</body>
+</html>

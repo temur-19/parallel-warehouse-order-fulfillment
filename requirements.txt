@@ -20,3 +20,5 @@ joblib
 numpy
 pandas
 scikit-learn
+aiosqlite
+uvicorn

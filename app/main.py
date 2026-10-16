@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from asyncpg import transaction
 from fastapi import APIRouter, Depends, FastAPI
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import create_tables, get_db
@@ -31,6 +32,11 @@ user_router = APIRouter(prefix="/user")
 
 app.include_router(transaction_router)
 app.include_router(user_router)
+
+
+@app.get("/", include_in_schema=False)
+async def frontend():
+    return FileResponse(Path(__file__).parent / "static" / "index.html")
 
 
 @transaction_router.post("/add/")
@@ -160,6 +166,7 @@ async def create_user(
     user = User(
         first_name=user_in.first_name,
         last_name=user_in.last_name,
+        balance=user_in.balance,
     )
     db.add(user)
     await db.commit()
