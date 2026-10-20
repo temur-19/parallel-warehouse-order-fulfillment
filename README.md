@@ -40,19 +40,35 @@ Install the dependencies and train the model offline:
 
 ```bash
 pip install -r requirements.txt
-python -m app.ml.train
 ```
 
-Training reads `data/training.csv` and uses `is_fraud` as the target. The CSV
-must contain `amount`, `currency`, `country`, `city`,
-`transactions_last_10_min`, `is_new_device`, and `is_fraud`; the fraud target
-must use `1` for fraud and `0` for legitimate transactions. `user_id` may be
-present in the CSV but is not used as a model feature. Categorical columns are
-encoded in the training pipeline, with infrequent values grouped to limit
-high-cardinality expansion. The parallel-reduce training experiment saves its
-averaged model to `app/ml/reduce_model.pkl`; `app.ml.predict.predict_transaction`
-continues to load `app/ml/model.pkl`. The training script reports holdout
+Training reads `data/PS_20174392719_1491204439457_log.csv` and uses
+`isFraud` as the target (`1` for fraud, `0` for legitimate transactions).
+Categorical columns are one-hot encoded, with infrequent values grouped to
+limit high-cardinality expansion. The trainer uses MPI to divide the training
+data between processes.
+
+Because histogram gradient boosting requires dense input, the encoded
+features are converted to a dense matrix during training. The trained model is
+saved to `app/ml/model.pkl`, the same file loaded by
+`app.ml.predict.predict_transaction`. The training script reports holdout
 accuracy, precision, recall, F1-score, and ROC-AUC.
+
+Install an MPI implementation (such as Open MPI) on every participating
+machine, then run from the project root:
+
+```bash
+mpiexec -n 4 venv/bin/python -m app.ml.train
+```
+
+Rank 0 reads and splits the dataset, then sends one stratified training shard
+to each MPI process. Each process fits one model with native CPU threading
+limited to one thread; rank 0 averages their fraud probabilities, evaluates
+the ensemble, and saves it to `app/ml/model.pkl`. The MPI ensemble can be
+loaded by the same prediction API. Use the same project code and dataset path
+on all ranks; only rank 0 reads the dataset. The MPI ensemble trains on a
+fraction of the training rows per model, so compare its evaluation metrics
+with prior results before using it in production.
 
 `app.ml.predict.predict_transaction(data)` loads the saved model on first use
 and returns a fraud `risk_score` and `is_fraud` decision. Pass the model's

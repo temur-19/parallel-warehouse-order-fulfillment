@@ -7,19 +7,21 @@ from typing import Any, Mapping
 import joblib
 import numpy as np
 import pandas as pd
+from app.ml.parallel_reduce import ParallelReduceClassifier
 from sklearn.pipeline import Pipeline
 
 MODEL_PATH = Path(__file__).resolve().with_name("model.pkl")
+TrainedModel = Pipeline | ParallelReduceClassifier
 
 
 @lru_cache(maxsize=1)
-def _load_model() -> Pipeline:
+def _load_model() -> TrainedModel:
     if not MODEL_PATH.is_file():
         raise FileNotFoundError(
             f"Trained model not found at {MODEL_PATH}. "
             "Run `python -m app.ml.train` first."
         )
-    model: Pipeline = joblib.load(MODEL_PATH)
+    model: TrainedModel = joblib.load(MODEL_PATH)
     return model
     
 
@@ -39,8 +41,7 @@ async def predict_transaction(
         [{column: data[column] for column in feature_columns}],
         columns=feature_columns,
     )
-    classifier = model.named_steps["classifier"]
-    fraud_class_indices = np.flatnonzero(classifier.classes_ == 1)
+    fraud_class_indices = np.flatnonzero(model.classes_ == 1)
     if len(fraud_class_indices) != 1:
         raise ValueError("The trained model does not contain fraud class 1.")
 
