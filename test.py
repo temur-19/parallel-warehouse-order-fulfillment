@@ -1,43 +1,52 @@
-import dotenv
-import os
+# import dotenv
+# import os
 
-dotenv.load_dotenv()
+# dotenv.load_dotenv()
 
-print({"BOT_TOKEN":os.getenv("TELEGRAM_BOT_TOKEN"),
-       "ADMIN_ID":os.getenv("TELEGRAM_ADMIN_ID")})
+# print({"BOT_TOKEN":os.getenv("TELEGRAM_BOT_TOKEN"),
+#        "ADMIN_ID":os.getenv("TELEGRAM_ADMIN_ID")})
 
-import joblib
+# import joblib
 
-file_path = "app/ml/model.pkl"
+# file_path = "app/ml/model.pkl"
 
-try:
-    model = joblib.load(file_path)
+# try:
+#     model = joblib.load(file_path)
 
-    print("Model muvaffaqiyatli yuklandi!")
-    print("Model turi:", type(model))
+#     print("Model muvaffaqiyatli yuklandi!")
+#     print("Model turi:", type(model))
 
-    if hasattr(model, "steps"):
-        print("\nPipeline bosqichlari:")
-        for name, step in model.steps:
-            print(f"{name}: {type(step).__name__}")
+#     if hasattr(model, "steps"):
+#         print("\nPipeline bosqichlari:")
+#         for name, step in model.steps:
+#             print(f"{name}: {type(step).__name__}")
 
-except Exception as error:
-    print("Xatolik:", repr(error))
+# except Exception as error:
+#     print("Xatolik:", repr(error))
 
-import joblib
+# import joblib
 
-model = joblib.load("app/ml/model.pkl")
+# model = joblib.load("app/ml/model.pkl")
 
-print("Model:", type(model).__name__)
+# print("Model:", type(model).__name__)
 
-print("\nPipeline bosqichlari:")
-for name, step in model.steps:
-    print(f"{name}: {type(step).__name__}")
+# print("\nPipeline bosqichlari:")
+# for name, step in model.steps:
+#     print(f"{name}: {type(step).__name__}")
 
-print("\nModel parametrlari:")
-print(model.named_steps["classifier"].get_params())
+# print("\nModel parametrlari:")
+# print(model.named_steps["classifier"].get_params())
 
-print("\nKutilayotgan xususiyatlar:")
-print(model.feature_names_in_
-      if hasattr(model, "feature_names_in_")
-      else "Pipeline darajasida mavjud emas")
+# print("\nKutilayotgan xususiyatlar:")
+# print(model.feature_names_in_
+#       if hasattr(model, "feature_names_in_")
+#       else "Pipeline darajasida mavjud emas")
+
+import torch
+
+print(torch.cuda.is_available())        # True bo'lishi kerak
+print(torch.cuda.device_count())
+print(torch.cuda.get_device_name(0))
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Device:", device)

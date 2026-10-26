@@ -80,3 +80,19 @@ the trained PaySim model fields `step`, `type`, `oldbalanceOrg`,
 Those PaySim fields are required for inference and must be supplied from the
 transaction source; they cannot be derived from the other API fields. The
 response includes the transaction ID, risk score, fraud decision, and status.
+
+### CUDA Training
+
+The optional PyTorch trainer uses the NVIDIA GPU to train a mini-batch
+fraud-detection model and reports accuracy, precision, recall, F1, ROC-AUC,
+training throughput, and elapsed times. Install a CUDA-enabled PyTorch build
+compatible with your NVIDIA driver, then run from the project root:
+
+```bash
+venv/bin/python -m app.ml.cuda_train
+```
+
+The model weights, preprocessing values, evaluation metrics, and timing
+results are saved together in `app/ml/cuda_train_fast.pkl`. This CUDA artifact
+is separate from `app/ml/model.pkl`, which the existing API prediction code
+uses.
