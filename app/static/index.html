@@ -88,6 +88,12 @@
     .result-panel.error { border-color: var(--red); background: #fff1ed; }
     .result-title { margin: 0 0 5px; font-weight: 700; }
     .result-copy { margin: 0; color: #53645c; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+    .reason-heading { margin: 15px 0 7px; font-size: 13px; }
+    .reason-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .reason-item { padding: 10px 12px; border: 1px solid #dfe9df; border-radius: 5px; background: rgba(255, 255, 255, .7); }
+    .reason-feature { display: block; margin-bottom: 3px; font-size: 13px; }
+    .reason-impact { color: var(--red); font-size: 12px; font-weight: 700; }
+    .reason-note { margin-top: 8px; }
     .result-panel[hidden] { display: none; }
     .accounts { display: grid; gap: 11px; }
     .account-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 6px; background: #fbfcfa; }
@@ -202,7 +208,7 @@
     const transactions = [];
     const apiState = document.querySelector('#api-state');
 
-    function showResult(element, title, message, isError = false) {
+    function showResult(element, title, message, isError = false, details = []) {
       element.hidden = false;
       element.classList.toggle('error', isError);
       element.innerHTML = '';
@@ -213,6 +219,44 @@
       copy.className = 'result-copy';
       copy.textContent = message;
       element.append(heading, copy);
+      if (details.length) {
+        const reasonHeading = document.createElement('h3');
+        reasonHeading.className = 'reason-heading';
+        reasonHeading.textContent = isError
+          ? 'Shubhalilikka ta’sir qilgan xususiyatlar'
+          : 'Risk bahosiga ta’sir qilgan xususiyatlar';
+        const reasons = document.createElement('ul');
+        reasons.className = 'reason-list';
+        for (const detail of details) {
+          const item = document.createElement('li');
+          item.className = 'reason-item';
+          if (detail.feature) {
+            const feature = document.createElement('strong');
+            feature.className = 'reason-feature';
+            const value = typeof detail.value === 'number'
+              ? new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 2 }).format(detail.value)
+              : detail.value;
+            feature.textContent = `${detail.feature}: ${value}`;
+            item.append(feature);
+          }
+          const description = document.createElement('p');
+          description.className = 'result-copy';
+          description.textContent = detail.description;
+          item.append(description);
+          if (detail.impact_percentage_points > 0) {
+            const impact = document.createElement('span');
+            impact.className = 'reason-impact';
+            impact.textContent = `Risk bahosiga ta’siri: +${detail.impact_percentage_points} foiz punkt`;
+            item.append(impact);
+          }
+          reasons.append(item);
+        }
+        const explanationNote = document.createElement('p');
+        explanationNote.className = 'result-copy reason-note';
+        explanationNote.textContent =
+          'Bu xususiyatlar model bahosiga ta’sirini ko‘rsatadi, firibgarlikni o‘zi isbotlamaydi.';
+        element.append(reasonHeading, reasons, explanationNote);
+      }
     }
 
     async function postJson(path, payload) {
@@ -365,7 +409,7 @@
         transactions.unshift(transaction);
         renderTransactions();
         const verdict = data.is_fraud ? 'Shubhali tranzaksiya' : 'Tranzaksiya ishonchli';
-        showResult(result, verdict, `ID ${data.transaction_id} • Risk ${(Number(data.risk_score) * 100).toFixed(1)}% • Holat: ${data.status}`, Boolean(data.is_fraud));
+        showResult(result, verdict, `ID ${data.transaction_id} • Risk ${(Number(data.risk_score) * 100).toFixed(1)}% • Holat: ${data.status}`, Boolean(data.is_fraud), data.reasons || []);
       } catch (error) {
         showResult(result, 'Tahlil bajarilmadi', error.message, true);
       } finally {

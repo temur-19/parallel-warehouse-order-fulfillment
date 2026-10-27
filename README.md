@@ -50,8 +50,7 @@ data between processes.
 
 Because histogram gradient boosting requires dense input, the encoded
 features are converted to a dense matrix during training. The trained model is
-saved to `app/ml/model.pkl`, the same file loaded by
-`app.ml.predict.predict_transaction`. The training script reports holdout
+saved to `app/ml/model.pkl`. The training script reports holdout
 accuracy, precision, recall, F1-score, and ROC-AUC.
 
 Install an MPI implementation (such as Open MPI) on every participating
@@ -64,16 +63,22 @@ mpiexec -n 4 venv/bin/python -m app.ml.train
 Rank 0 reads and splits the dataset, then sends one stratified training shard
 to each MPI process. Each process fits one model with native CPU threading
 limited to one thread; rank 0 averages their fraud probabilities, evaluates
-the ensemble, and saves it to `app/ml/model.pkl`. The MPI ensemble can be
-loaded by the same prediction API. Use the same project code and dataset path
-on all ranks; only rank 0 reads the dataset. The MPI ensemble trains on a
-fraction of the training rows per model, so compare its evaluation metrics
-with prior results before using it in production.
+the ensemble, and saves it to `app/ml/model.pkl`. This artifact is separate
+from the CUDA model used by the prediction API. Use the same project code and
+dataset path on all ranks; only rank 0 reads the dataset. The MPI ensemble
+trains on a fraction of the training rows per model, so compare its evaluation
+metrics with prior results before using it in production.
 
-`app.ml.predict.predict_transaction(data)` loads the saved model on first use
-and returns a fraud `risk_score` and `is_fraud` decision. Pass the model's
-feature columns as keys in `data`; optional extra transaction fields are
-ignored. `POST /transaction/add/` accepts `user_id`, `amount`, `currency`,
+`app.ml.predict.predict_transaction(data)` loads `app/ml/cuda_train.pkl` on
+first use and returns a fraud `risk_score` and `is_fraud` decision. This
+version-1 CUDA artifact expects the seven PaySim numeric features and the
+categorical `type` feature; optional extra transaction fields are ignored.
+The response includes up to three model-based reasons, each identifying the
+feature, its transaction value, the comparison baseline, and its impact on the
+risk score. The frontend shows these under “Shubhalilikka ta’sir qilgan
+xususiyatlar”. These indicate model influence, not proof of fraud or causal
+explanations.
+`POST /transaction/add/` accepts `user_id`, `amount`, `currency`,
 `country`, `city`, `transactions_last_10_min`, and `is_new_device`, as well as
 the trained PaySim model fields `step`, `type`, `oldbalanceOrg`,
 `newbalanceOrig`, `oldbalanceDest`, `newbalanceDest`, and `isFlaggedFraud`.
@@ -94,5 +99,5 @@ venv/bin/python -m app.ml.cuda_train
 
 The model weights, preprocessing values, evaluation metrics, and timing
 results are saved together in `app/ml/cuda_train_fast.pkl`. This CUDA artifact
-is separate from `app/ml/model.pkl`, which the existing API prediction code
-uses.
+is a separate version-2 artifact. The API currently loads the version-1
+artifact at `app/ml/cuda_train.pkl`; it does not load `cuda_train_fast.pkl`.

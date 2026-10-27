@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI
@@ -82,8 +83,8 @@ async def create_transaction(
                      'type': transaction_in.type,
                      'oldbalanceOrg': old_balance,
                      'newbalanceOrig': new_balance,
-                     'oldbalanceDest': 0.0,
-                     'newbalanceDest': 0.0,
+                     'oldbalanceDest': oldbalance_dest,
+                     'newbalanceDest': newbalance_dest,
                      'isFlaggedFraud': transaction_in.is_flagged_fraud  
                      }
 
@@ -97,6 +98,7 @@ async def create_transaction(
         transaction_id=prediction_data.id,
         risk_score=prediction["risk_score"],
         status=status,
+        reasons=json.dumps(prediction["reasons"], ensure_ascii=False),
     )
     
     db.add(fraud_result)
@@ -128,6 +130,7 @@ async def create_transaction(
         "transaction_id": prediction_data.id,
         "risk_score": prediction["risk_score"],
         "is_fraud": prediction["is_fraud"],
+        "reasons": prediction["reasons"],
         "status": status,
     }
 
@@ -155,7 +158,13 @@ async def get_transaction(transaction_id: int, db: AsyncSession = Depends(get_db
         "created_at": transaction.created_at.isoformat(),
         "risk_score": fraud_result.risk_score,
         "status": fraud_result.status,
-        "reasons": fraud_result.reasons,
+        "reasons": (
+            json.loads(fraud_result.reasons)
+            if fraud_result.reasons and fraud_result.reasons.startswith("[")
+            else fraud_result.reasons.splitlines()
+            if fraud_result.reasons
+            else []
+        ),
     }
 
 @user_router.post('/add/')
