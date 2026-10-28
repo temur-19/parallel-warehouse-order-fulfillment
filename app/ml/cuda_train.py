@@ -99,9 +99,7 @@ class FraudMLP(nn.Module):
         return self.layers(torch.cat((features, embedded), dim=1)).squeeze(1)
 
 
-# --------------------------------------------------------------------------
-# GPU feature engineering (butun dataset bo'yicha parallel, elementwise)
-# --------------------------------------------------------------------------
+
 def _signed_log1p(x: torch.Tensor) -> torch.Tensor:
     return torch.sign(x) * torch.log1p(x.abs())
 
@@ -245,7 +243,7 @@ def train_one_epoch(
         scaler.step(optimizer)
         scaler.update()
         scheduler.step()
-        total_loss += loss.detach()  # CPU bilan sinxronlashtirmaymiz
+        total_loss += loss.detach() 
     return total_loss / steps
 
 
@@ -306,7 +304,7 @@ def train_model() -> dict[str, object]:
     device = torch.device("cuda")
     torch.manual_seed(RANDOM_STATE)
     torch.cuda.manual_seed_all(RANDOM_STATE)
-    torch.set_float32_matmul_precision("high")  # TF32 tensor core'lar
+    torch.set_float32_matmul_precision("high")  
     torch.backends.cudnn.benchmark = True
     amp_dtype = _select_amp_dtype(device)
     print(f"Dataset: {DATASET_PATH}")
@@ -322,8 +320,8 @@ def train_model() -> dict[str, object]:
     data_seconds = perf_counter() - data_start
 
     splits = prepared["splits"]
-    known_categories: list[str] = prepared["categories"]  # type: ignore[assignment]
-    train_split, val_split, test_split = splits["train"], splits["val"], splits["test"]  # type: ignore[index]
+    known_categories: list[str] = prepared["categories"]
+    train_split, val_split, test_split = splits["train"], splits["val"], splits["test"]
     print(
         f"Train: {train_split[0].shape[0]:,}; val: {val_split[0].shape[0]:,}; "
         f"test: {test_split[0].shape[0]:,}; "
@@ -335,7 +333,7 @@ def train_model() -> dict[str, object]:
     negative_count = train_split[2].shape[0] - positive_count
     if positive_count == 0 or negative_count == 0:
         raise ValueError("Train qismida ikkala target sinfi ham bo'lishi kerak.")
-    # To'liq nisbat o'rniga ildiz: barqarorroq; qolganini threshold tuning hal qiladi.
+
     pos_weight = torch.tensor((negative_count / positive_count) ** 0.5, device=device)
     loss_function = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
@@ -343,7 +341,7 @@ def train_model() -> dict[str, object]:
         model.parameters(),
         lr=MAX_LEARNING_RATE,
         weight_decay=WEIGHT_DECAY,
-        fused=True,  # bitta CUDA kernel bilan butun optimizer step
+        fused=True,
     )
     steps_per_epoch = train_split[0].shape[0] // BATCH_SIZE
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
@@ -392,7 +390,6 @@ def train_model() -> dict[str, object]:
     model.load_state_dict(best_state)
     print(f"Eng yaxshi epoch: {best_epoch} (val PR-AUC={best_pr_auc:.5f})")
 
-    # Threshold validation'da tanlanadi, test'da faqat bir marta qo'llanadi.
     val_probabilities = predict_probabilities(model, val_split, amp_dtype).cpu().numpy()
     threshold = find_best_threshold(val_actual, val_probabilities)
 
@@ -468,7 +465,7 @@ def train_model() -> dict[str, object]:
         f"jami={total_seconds:.2f} s"
     )
     print(
-        f"Tezlik: {artifact['training']['training_rows_per_second']:.0f} "  # type: ignore[index]
+        f"Tezlik: {artifact['training']['training_rows_per_second']:.0f} "
         "train-row/s"
     )
     print(
