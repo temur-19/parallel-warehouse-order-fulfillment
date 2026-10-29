@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column , relationship
 from datetime import datetime, timezone
+import random
 
 from app.database import Base
 
@@ -10,6 +11,8 @@ class Transaction(Base):
     sender_id:Mapped[int] = mapped_column(ForeignKey("users.id"),nullable=False,index=True)
     receiver_id:Mapped[int] = mapped_column(ForeignKey("users.id"),nullable=False,index=True)
     amount:Mapped[float] = mapped_column(Float,nullable=False)
+    sender_card_number:Mapped[str] = mapped_column(String(16), nullable=False)
+    receiver_card_number:Mapped[str] = mapped_column(String(16), nullable=False)
     currency:Mapped[str] = mapped_column(String(10), default='UZS')
     country: Mapped[str] = mapped_column(String(100),nullable=False)
     city: Mapped[str] = mapped_column(String(100),nullable=False)
@@ -61,13 +64,28 @@ class FraudResult(Base):
     )
 
 
+
+def generate_card_number():
+    num = '9860'
+    return num + ''.join(str(random.randint(1000, 9999)) for i in range(3))
+
 class User(Base):
     __tablename__ = "users"
     id:Mapped[int] = mapped_column(Integer, primary_key = True, index = True)
+    phone:Mapped[str] = mapped_column(String(13), nullable=False)
     first_name:Mapped[str] = mapped_column(String(100),nullable=False)
     last_name:Mapped[str] = mapped_column(String(100),nullable=False)
+    password:Mapped[str] = mapped_column(String, nullable=False)
+    card_number:Mapped[str] = mapped_column(String(16), nullable=False, default = generate_card_number, unique=True)
     balance:Mapped[float] = mapped_column(Float, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
     DateTime(timezone=True),
     default=lambda: datetime.now(timezone.utc),
-    nullable=False)
+    nullable=False    )
+
+class Fraud_cases(Base):
+    __tablename__ = 'fraud_cases'
+    id:Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    transaction_id:Mapped[int] = mapped_column(ForeignKey('transactions.id'), nullable=False, index=True)
+    risk_score:Mapped[str] = mapped_column(String)
+    status:Mapped[str] = mapped_column(String)

@@ -78,13 +78,26 @@ feature, its transaction value, the comparison baseline, and its impact on the
 risk score. The frontend shows these under “Shubhalilikka ta’sir qilgan
 xususiyatlar”. These indicate model influence, not proof of fraud or causal
 explanations.
-`POST /transaction/add/` accepts `user_id`, `amount`, `currency`,
-`country`, `city`, `transactions_last_10_min`, and `is_new_device`, as well as
-the trained PaySim model fields `step`, `type`, `oldbalanceOrg`,
+`POST /transaction/add/` accepts `sender_card_number`,
+`receiver_card_number`, `amount`, `currency`, `country`, `city`,
+`transactions_last_10_min`, and `is_new_device`, as well as the trained
+PaySim model fields `step`, `type`, `oldbalanceOrg`,
 `newbalanceOrig`, `oldbalanceDest`, `newbalanceDest`, and `isFlaggedFraud`.
 Those PaySim fields are required for inference and must be supplied from the
 transaction source; they cannot be derived from the other API fields. The
 response includes the transaction ID, risk score, fraud decision, and status.
+
+### User login
+
+Users register with a password; the API stores it as a PBKDF2-SHA256 hash.
+They log in with the generated 16-digit card number and password at
+`POST /user/login/`, which accepts JSON and returns a 30-minute bearer token.
+The frontend has separate `/login/` and `/register/` pages; the protected
+transaction dashboard is served at `/`.
+Set a private `JWT_SECRET_KEY` in the project `.env` before starting the API;
+generate a strong value with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+The token is required for transfers and transaction-detail requests, and a
+transfer can only be sent from the logged-in user's own card.
 
 ### CUDA Training
 
