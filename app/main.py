@@ -97,7 +97,6 @@ async def create_transaction(
                      'isFlaggedFraud': transaction_in.is_flagged_fraud  
                      }
 
-
     prediction = await predict_transaction(prediction_in)
     status = "fraud" if prediction["is_fraud"] else "legitimate"
     fraud_result = FraudResult(
@@ -132,9 +131,26 @@ async def create_transaction(
                 # loyihaning talablariga bog'liq.
                 pass
 
+
+    if float(prediction['risk_score']) > 0.90:
+        transaction_status = "Pending Review"
+        risk_level = "HIGH"
+        return {
+            'transaction_status':transaction_status,
+            'risk_level':risk_level
+        }
+
     elif 0.90 > prediction["risk_score"]>=0.60:
-        pass
+        transaction_status = "Pending Review"
+        risk_level = "Medium"
+        return {
+                'transaction_status':transaction_status,
+                'risk_level':risk_level
+                }
+
     else:
+        transaction_status = "COMPLETED"
+        risk_level = "LOW"
         prediction_data = Transaction(
                 sender_id = sender_id,
                 receiver_id = receiver_id,

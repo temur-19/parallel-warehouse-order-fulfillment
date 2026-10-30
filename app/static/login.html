@@ -43,13 +43,13 @@
   <main>
     <p class="eyebrow">Xush kelibsiz</p>
     <h1>Tizimga kirish</h1>
-    <p class="subtitle">Hisobingizga kirish uchun karta raqami va parolni kiriting.</p>
+    <p class="subtitle">Hisobingizga kirish uchun telefon raqamingiz va parolingizni kiriting.</p>
     <section class="panel">
       <div class="panel-body">
         <form id="login-form">
           <div class="field">
-            <label for="card-number">Karta raqami</label>
-            <input id="card-number" name="card_number" inputmode="numeric" pattern="[0-9]{16}" maxlength="16" placeholder="9860123412341234" autocomplete="username" required>
+            <label for="phone">Telefon raqami</label>
+            <input id="phone" name="phone" type="tel" maxlength="13" placeholder="+998901234567" autocomplete="username" required>
           </div>
           <div class="field">
             <label for="password">Parol</label>
@@ -67,8 +67,8 @@
     const result = document.querySelector('#login-result');
     const existingToken = sessionStorage.getItem('accessToken');
     if (existingToken) window.location.replace('/');
-    const cardField = document.querySelector('#card-number');
-    cardField.value = new URLSearchParams(window.location.search).get('card_number') || '';
+    const phoneField = document.querySelector('#phone');
+    phoneField.value = new URLSearchParams(window.location.search).get('phone') || '';
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -80,7 +80,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            card_number: cardField.value.replace(/\s/g, ''),
+            phone: phoneField.value.trim(),
             password: form.password.value,
           }),
         });

@@ -45,7 +45,7 @@
   <main>
     <p class="eyebrow">Yangi hisob</p>
     <h1>Ro‘yxatdan o‘tish</h1>
-    <p class="subtitle">Hisob oching va sizga karta raqami beriladi.</p>
+    <p class="subtitle">Hisob oching. Tizimga telefon raqamingiz orqali kirasiz.</p>
     <section class="panel">
       <div class="panel-body">
         <form id="register-form">
@@ -57,6 +57,10 @@
             <div class="field">
               <label for="last-name">Familiya</label>
               <input id="last-name" name="last_name" autocomplete="family-name" required>
+            </div>
+            <div class="field wide">
+              <label for="phone">Telefon raqami</label>
+              <input id="phone" name="phone" type="tel" maxlength="13" placeholder="+998901234567" autocomplete="tel" required>
             </div>
             <div class="field wide">
               <label for="password">Parol (kamida 8 belgi)</label>
@@ -89,6 +93,7 @@
           body: JSON.stringify({
             first_name: form.first_name.value.trim(),
             last_name: form.last_name.value.trim(),
+            phone: form.phone.value.trim(),
             password: form.password.value,
             balance: Number(form.balance.value),
           }),
@@ -101,11 +106,11 @@
         const cardNumber = String(data.card_number || '');
         if (!cardNumber) throw new Error('API karta raqamini qaytarmadi');
         result.classList.remove('error');
-        result.textContent = `Hisob yaratildi. Karta raqamingiz: ${cardNumber.replace(/(\d{4})(?=\d)/g, '$1 ')}. Uni saqlab qo‘ying.`;
+        result.textContent = `Hisob yaratildi. Tizimga kirish uchun telefon raqamingizdan foydalaning. Karta raqamingiz: ${cardNumber.replace(/(\d{4})(?=\d)/g, '$1 ')}.`;
         result.hidden = false;
         const loginLink = document.createElement('a');
-        loginLink.href = `/login/?card_number=${encodeURIComponent(cardNumber)}`;
-        loginLink.textContent = ' Endi tizimga kiring.';
+        loginLink.href = `/login/?phone=${encodeURIComponent(form.phone.value.trim())}`;
+        loginLink.textContent = ' Endi telefon raqamingiz bilan kiring.';
         result.append(loginLink);
         form.reset();
         form.balance.value = '1000000';

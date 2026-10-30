@@ -76,9 +76,7 @@ FEATURE_LABELS = {
     "step": "Tranzaksiya vaqti (step)",
     "amount": "Tranzaksiya summasi",
     "oldbalanceOrg": "Jo'natuvchining avvalgi balansi",
-    "newbalanceOrig": "Jo'natuvchining keyingi balansi",
     "oldbalanceDest": "Qabul qiluvchining avvalgi balansi",
-    "newbalanceDest": "Qabul qiluvchining keyingi balansi",
     "isFlaggedFraud": "Manbadagi firibgarlik belgisi",
 }
 

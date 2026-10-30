@@ -106,6 +106,7 @@
     .activity-status { font-size: 12px; font-weight: 700; }
     .activity-status.fraud { color: var(--red); }
     .activity-status.legitimate { color: var(--green); }
+    .activity-status.pending { color: #a76b00; }
     .activity-meta { color: var(--muted); font-size: 11px; }
     .activity-amount { grid-column: 2; grid-row: 2; color: var(--muted); font-size: 12px; text-align: right; }
     .activity-empty { color: var(--muted); font-size: 13px; }
@@ -142,7 +143,7 @@
         <div>
           <p class="eyebrow">Operatsiyalar markazi</p>
           <h1>Tranzaksiya nazorati</h1>
-          <p class="subtitle">Karta raqami orqali pul yuboring va to‘lov xavfini tekshiring.</p>
+          <p class="subtitle">Karta raqami orqali test tranzaksiyasini yuboring va to‘lov xavfini tekshiring.</p>
         </div>
         <div class="api-pill"><span class="live-dot" aria-hidden="true"></span> API <b id="api-state">tekshirilmoqda</b></div>
       </section>
@@ -296,13 +297,22 @@
         row.className = 'activity-row';
         const label = document.createElement('span');
         label.className = 'activity-label';
-        label.textContent = `Tranzaksiya #${transaction.transaction_id}`;
+        label.textContent = transaction.transaction_id
+          ? `Tranzaksiya #${transaction.transaction_id}`
+          : 'Yangi tranzaksiya';
         const status = document.createElement('span');
-        status.className = `activity-status ${transaction.status}`;
-        status.textContent = transaction.status === 'fraud' ? 'Shubhali' : 'Ishonchli';
+        const transactionStatus = String(transaction.transaction_status || transaction.status || '').toLowerCase();
+        const pending = transactionStatus === 'pending review';
+        const fraudulent = Boolean(transaction.is_fraud) || transactionStatus === 'fraud';
+        status.className = `activity-status ${pending ? 'pending' : fraudulent ? 'fraud' : 'legitimate'}`;
+        status.textContent = pending
+          ? 'Tekshiruvda'
+          : fraudulent ? 'Shubhali' : 'Ishonchli';
         const meta = document.createElement('span');
         meta.className = 'activity-meta';
-        meta.textContent = `Risk ${(Number(transaction.risk_score) * 100).toFixed(1)}%`;
+        meta.textContent = transaction.risk_score !== undefined && transaction.risk_score !== null
+          ? `Risk ${(Number(transaction.risk_score) * 100).toFixed(1)}%`
+          : `Risk darajasi: ${transaction.risk_level || 'Noma’lum'}`;
         const amount = document.createElement('span');
         amount.className = 'activity-amount';
         amount.textContent = `${Number(transaction.amount).toLocaleString('uz-UZ')} ${transaction.currency}`;
@@ -331,11 +341,32 @@
           type: form.type.value,
           isFlaggedFraud: Number(form.isFlaggedFraud.value),
         }, accessToken);
-        const transaction = { ...data, amount: Number(form.amount.value), currency: form.currency.value };
+        const transaction = {
+          ...data,
+          amount: Number(form.amount.value),
+          currency: form.currency.value,
+        };
         transactions.unshift(transaction);
         renderTransactions();
-        const verdict = data.is_fraud ? 'Shubhali tranzaksiya' : 'Tranzaksiya ishonchli';
-        showResult(result, verdict, `ID ${data.transaction_id} • Risk ${(Number(data.risk_score) * 100).toFixed(1)}% • Holat: ${data.status}`, Boolean(data.is_fraud), data.reasons || []);
+        const transactionStatus = data.transaction_status || data.status || 'Noma’lum';
+        const pending = String(transactionStatus).toLowerCase() === 'pending review';
+        const verdict = pending
+          ? 'Tranzaksiya tekshiruvda'
+          : data.is_fraud ? 'Shubhali tranzaksiya' : 'Tranzaksiya ishonchli';
+        const summary = [
+          data.transaction_id ? `ID ${data.transaction_id}` : null,
+          data.risk_score !== undefined && data.risk_score !== null
+            ? `Risk ${(Number(data.risk_score) * 100).toFixed(1)}%`
+            : data.risk_level ? `Risk darajasi: ${data.risk_level}` : null,
+          `Holat: ${transactionStatus}`,
+        ].filter(Boolean).join(' • ');
+        showResult(
+          result,
+          verdict,
+          summary,
+          Boolean(data.is_fraud) && !pending,
+          Array.isArray(data.reasons) ? data.reasons : [],
+        );
       } catch (error) {
         showResult(result, 'Tahlil bajarilmadi', error.message, true);
       } finally {
