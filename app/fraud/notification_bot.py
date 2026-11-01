@@ -17,10 +17,13 @@ async def notify_transaction(transaction: dict) -> None:
     message = (
         f"{emoji} TRANZAKSIYA\n\n"
         f"ID: {transaction['id']}\n"
+        f"Holat: {transaction.get('transaction_status', transaction.get('status', 'Noma’lum'))}\n"
         f"Summa: {transaction['amount']} "
         f"{transaction['currency']}\n"
         f"Risk bahosi: {risk_score:.2f}\n"
         f"Risk darajasi: {risk_level}"
     )
+    if transaction.get("is_fraud"):
+        message += "\nModel xulosasi: shubhali"
 
     await send_telegram_message(message)

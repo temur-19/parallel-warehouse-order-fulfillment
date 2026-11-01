@@ -69,31 +69,39 @@ dataset path on all ranks; only rank 0 reads the dataset. The MPI ensemble
 trains on a fraction of the training rows per model, so compare its evaluation
 metrics with prior results before using it in production.
 
-`app.ml.predict.predict_transaction(data)` loads `app/ml/cuda_train.pkl` on
-first use and returns a fraud `risk_score` and `is_fraud` decision. This
-version-1 CUDA artifact expects the seven PaySim numeric features and the
-categorical `type` feature; optional extra transaction fields are ignored.
+`app.ml.predict.predict_transaction(data)` loads
+`app/ml/cuda_train_fast.pkl` on first use and returns a fraud `risk_score` and
+`is_fraud` decision. The version-3 CUDA artifact uses only the PaySim fields
+shared with the transaction API: `step`, `amount`, `oldbalanceOrg`,
+`oldbalanceDest`, `isFlaggedFraud`, and categorical `type`. Other API fields
+such as currency, country, city, recent transaction count, and device status
+are stored with the transaction but are not model inputs because the current
+PaySim training dataset does not contain them.
 The response includes up to three model-based reasons, each identifying the
 feature, its transaction value, the comparison baseline, and its impact on the
 risk score. The frontend shows these under “Shubhalilikka ta’sir qilgan
 xususiyatlar”. These indicate model influence, not proof of fraud or causal
 explanations.
-`POST /transaction/add/` accepts `sender_card_number`,
-`receiver_card_number`, `amount`, `currency`, `country`, `city`,
-`transactions_last_10_min`, and `is_new_device`, as well as the trained
-PaySim model fields `step`, `type`, `oldbalanceOrg`,
-`newbalanceOrig`, `oldbalanceDest`, `newbalanceDest`, and `isFlaggedFraud`.
-Those PaySim fields are required for inference and must be supplied from the
-transaction source; they cannot be derived from the other API fields. The
-response includes the transaction ID, risk score, fraud decision, and status.
+`POST /transaction/add/` accepts sender/receiver cards and transaction
+context, along with `step`, `type`, and `isFlaggedFraud`. The API obtains
+`oldbalanceOrg` and `oldbalanceDest` from the sender and receiver account
+balances and passes those values to prediction. The response includes the
+transaction ID, risk score, fraud decision, and review/completion status.
 
-### User login
+### User login and banking dashboard
 
-Users register with a password; the API stores it as a PBKDF2-SHA256 hash.
-They log in with the generated 16-digit card number and password at
-`POST /user/login/`, which accepts JSON and returns a 30-minute bearer token.
+Users register with a phone number and password; the API stores the password
+as a PBKDF2-SHA256 hash and creates a default card. They log in with their
+phone number and password at `POST /user/login/`, which accepts JSON and
+returns a 30-minute bearer token. The protected dashboard uses
+`GET /user/profile/` for profile details, `GET /user/cards/` for the logged-in
+user's active card numbers, cardholder names, and balances, and
+`GET /user/balance/` for the combined active-card balance. `GET /user/me/` and
+`GET /user/get/profil` are profile aliases.
+`GET /transaction/history/` returns recent incoming and outgoing transfers.
+Transfers send the selected `sender_card_id` to `POST /transaction/add/`.
 The frontend has separate `/login/` and `/register/` pages; the protected
-transaction dashboard is served at `/`.
+dashboard is served at `/`.
 Set a private `JWT_SECRET_KEY` in the project `.env` before starting the API;
 generate a strong value with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
 The token is required for transfers and transaction-detail requests, and a
@@ -111,6 +119,5 @@ venv/bin/python -m app.ml.cuda_train
 ```
 
 The model weights, preprocessing values, evaluation metrics, and timing
-results are saved together in `app/ml/cuda_train_fast.pkl`. This CUDA artifact
-is a separate version-2 artifact. The API currently loads the version-1
-artifact at `app/ml/cuda_train.pkl`; it does not load `cuda_train_fast.pkl`.
+results are saved together in `app/ml/cuda_train_fast.pkl`. This version-3
+artifact is the one loaded by the prediction API.

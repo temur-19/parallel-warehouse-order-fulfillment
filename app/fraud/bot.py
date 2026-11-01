@@ -24,9 +24,15 @@ async def send_telegram_message(text: str) -> bool:
         response = await client.post(url, json=payload)
         response.raise_for_status()
 
-        result = response.json()
+        try:
+            result = response.json()
+        except ValueError as error:
+            raise RuntimeError("Telegram API yaroqsiz javob qaytardi") from error
 
         if not result.get("ok"):
-            raise RuntimeError("Telegram xabar yuborilmadi")
+            description = result.get("description", "noma’lum sabab")
+            raise RuntimeError(
+                f"Telegram xabar yuborilmadi: {description}"
+            )
 
         return True

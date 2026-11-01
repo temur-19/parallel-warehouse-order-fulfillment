@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from torch import nn
 
-MODEL_PATH = Path(__file__).resolve().with_name("cuda_train.pkl")
+MODEL_PATH = Path(__file__).resolve().with_name("cuda_train_fast.pkl")
 
 
 class PredictionReason(TypedDict):
@@ -28,6 +28,7 @@ class _CudaFraudModel(nn.Module):
         category_count: int,
         hidden_layers: tuple[int, ...],
         embedding_dimension: int,
+        dropout: float,
     ) -> None:
         super().__init__()
         self.category_embedding = nn.Embedding(
@@ -35,22 +36,17 @@ class _CudaFraudModel(nn.Module):
         )
         layers: list[nn.Module] = []
         input_size = numeric_feature_count + embedding_dimension
-        for hidden_size in hidden_layers[:-1]:
+        for hidden_size in hidden_layers:
             layers.extend(
                 (
-                    nn.Linear(input_size, hidden_size),
-                    nn.ReLU(),
-                    nn.Dropout(),
+                    nn.Linear(input_size, hidden_size, bias=False),
+                    nn.BatchNorm1d(hidden_size),
+                    nn.SiLU(inplace=True),
+                    nn.Dropout(dropout),
                 )
             )
             input_size = hidden_size
-        layers.extend(
-            (
-                nn.Linear(input_size, hidden_layers[-1]),
-                nn.ReLU(),
-                nn.Linear(hidden_layers[-1], 1),
-            )
-        )
+        layers.append(nn.Linear(input_size, 1))
         self.layers = nn.Sequential(*layers)
 
     def forward(
@@ -69,6 +65,7 @@ class _LoadedModel:
     category_ids: dict[str, int]
     means: torch.Tensor
     standard_deviations: torch.Tensor
+    fraud_threshold: float
 
 
 FEATURE_LABELS = {
@@ -87,16 +84,17 @@ def _load_model() -> _LoadedModel:
         raise FileNotFoundError(f"Trained CUDA model not found at {MODEL_PATH}.")
 
     artifact: Any = joblib.load(MODEL_PATH)
-    if not isinstance(artifact, dict) or artifact.get("format_version") != 1:
+    if not isinstance(artifact, dict) or artifact.get("format_version") != 3:
         raise ValueError(
             f"Unsupported CUDA model artifact format in {MODEL_PATH}."
         )
 
     config = artifact["model_config"]
-    numeric_features = tuple(config["numeric_features"])
+    numeric_features = tuple(config["raw_numeric_features"])
     categories = tuple(config["categories"])
     hidden_layers = tuple(config["hidden_layers"])
     embedding_dimension = int(config["embedding_dimension"])
+    dropout = float(config["dropout"])
     category_feature = str(config["categorical_feature"])
 
     normalization = artifact["normalization"]
@@ -120,9 +118,14 @@ def _load_model() -> _LoadedModel:
         category_count=len(categories),
         hidden_layers=hidden_layers,
         embedding_dimension=embedding_dimension,
+        dropout=dropout,
     )
     model.load_state_dict(artifact["model_state_dict"])
     model.eval()
+
+    fraud_threshold = float(artifact["threshold"])
+    if not np.isfinite(fraud_threshold) or not 0.0 <= fraud_threshold <= 1.0:
+        raise ValueError("CUDA model fraud threshold must be between 0 and 1.")
 
     return _LoadedModel(
         model=model,
@@ -133,16 +136,20 @@ def _load_model() -> _LoadedModel:
         },
         means=means,
         standard_deviations=standard_deviations,
+        fraud_threshold=fraud_threshold,
     )
 
 
 async def predict_transaction(
-    data: Mapping[str, Any], fraud_threshold: float = 0.5
+    data: Mapping[str, Any], fraud_threshold: float | None = None
 ) -> dict[str, float | bool | list[PredictionReason]]:
-    if not 0.0 <= fraud_threshold <= 1.0:
+    trained = _load_model()
+    threshold = (
+        trained.fraud_threshold if fraud_threshold is None else fraud_threshold
+    )
+    if not np.isfinite(threshold) or not 0.0 <= threshold <= 1.0:
         raise ValueError("fraud_threshold must be between 0 and 1.")
 
-    trained = _load_model()
     required_features = (*trained.numeric_features, trained.category_feature)
     missing_features = [name for name in required_features if name not in data]
     if missing_features:
@@ -247,6 +254,6 @@ async def predict_transaction(
 
     return {
         "risk_score": risk_score,
-        "is_fraud": risk_score >= fraud_threshold,
+        "is_fraud": risk_score >= threshold,
         "reasons": reasons,
     }

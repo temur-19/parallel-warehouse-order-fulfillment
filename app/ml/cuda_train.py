@@ -33,26 +33,10 @@ RAW_NUMERIC_COLUMNS = (
     "step",
     "amount",
     "oldbalanceOrg",
-    "newbalanceOrig",
     "oldbalanceDest",
-    "newbalanceDest",
     "isFlaggedFraud",
 )
-FEATURE_NAMES = (
-    "step",
-    "hour_of_day",
-    "log_amount",
-    "log_oldbalanceOrg",
-    "log_newbalanceOrig",
-    "log_oldbalanceDest",
-    "log_newbalanceDest",
-    "log_error_orig",
-    "log_error_dest",
-    "isFlaggedFraud",
-    "orig_balance_zero_after",
-    "dest_balance_zero_both",
-    "orig_fully_drained",
-)
+FEATURE_NAMES = RAW_NUMERIC_COLUMNS
 
 RANDOM_STATE = 42
 TEST_SIZE = 0.2  # original skript bilan bir xil test to'plam
@@ -100,35 +84,9 @@ class FraudMLP(nn.Module):
 
 
 
-def _signed_log1p(x: torch.Tensor) -> torch.Tensor:
-    return torch.sign(x) * torch.log1p(x.abs())
-
-
 def build_features(raw: torch.Tensor) -> torch.Tensor:
-    """raw: (N, 7) float64 GPU tensor, ustunlar tartibi RAW_NUMERIC_COLUMNS.
-
-    Xato (error) feature'lari float64 da hisoblanadi: float32 da katta
-    summalarda markaziy qiymatlar yo'qoladi. Natija float32 ga o'tkaziladi.
-    """
-    step, amount, old_org, new_org, old_dest, new_dest, flagged = raw.unbind(dim=1)
-    error_orig = old_org - amount - new_org
-    error_dest = old_dest + amount - new_dest
-    columns = (
-        step,
-        step % 24,
-        _signed_log1p(amount),
-        _signed_log1p(old_org),
-        _signed_log1p(new_org),
-        _signed_log1p(old_dest),
-        _signed_log1p(new_dest),
-        _signed_log1p(error_orig),
-        _signed_log1p(error_dest),
-        flagged,
-        (new_org == 0).double(),
-        ((old_dest == 0) & (new_dest == 0)).double(),
-        (amount == old_org).double(),
-    )
-    return torch.stack([column.float() for column in columns], dim=1)
+    """Return only numeric features also available to the transaction API."""
+    return raw.to(dtype=torch.float32)
 
 
 
@@ -410,7 +368,7 @@ def train_model() -> dict[str, object]:
     gpu_properties = torch.cuda.get_device_properties(device)
 
     artifact: dict[str, object] = {
-        "format_version": 2,
+        "format_version": 3,
         "model_state_dict": {k: v.detach().cpu() for k, v in model.state_dict().items()},
         "model_config": {
             "raw_numeric_features": list(RAW_NUMERIC_COLUMNS),

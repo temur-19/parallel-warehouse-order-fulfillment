@@ -88,7 +88,7 @@
         if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
         if (!data.access_token) throw new Error('API kirish tokenini qaytarmadi');
         sessionStorage.setItem('accessToken', data.access_token);
-        sessionStorage.setItem('cardNumber', data.card_number);
+        if (data.card_number) sessionStorage.setItem('cardNumber', data.card_number);
         window.location.assign('/');
       } catch (error) {
         result.textContent = `Kirish amalga oshmadi: ${error.message}`;

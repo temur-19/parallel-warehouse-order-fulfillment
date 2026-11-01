@@ -1,383 +1,1018 @@
-
 <!doctype html>
 <html lang="uz">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#102a27">
-  <title>Flowline | Tranzaksiya nazorati</title>
+  <meta name="theme-color" content="#f6f7f5">
+  <meta name="description" content="Flowline shaxsiy banking kabineti">
+  <title>Flowline | Shaxsiy kabinet</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-
     :root {
       color-scheme: light;
-      --ink: #172522;
-      --muted: #71807b;
-      --paper: #f3f6f2;
-      --surface: #ffffff;
-      --line: #e2e9e3;
+      --ink: #17231f;
+      --muted: #78837e;
+      --paper: #f6f7f5;
+      --surface: #fff;
+      --line: #e8ebe8;
       --green: #176b52;
-      --green-dark: #102a27;
-      --lime: #c7ee79;
-      --red: #c34e40;
-      --shadow: 0 14px 40px rgba(24, 48, 39, .07);
+      --green-dark: #124d3d;
+      --green-soft: #eaf4ee;
+      --lime: #d3ef9b;
+      --red: #c45048;
+      --amber: #a76b13;
+      --shadow: 0 12px 34px rgba(30, 48, 39, .055);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: var(--paper);
-      color: var(--ink);
-      font-family: 'DM Sans', sans-serif;
-    }
+    body { margin: 0; min-width: 320px; background: var(--paper); color: var(--ink); }
     button, input, select { font: inherit; }
     button { cursor: pointer; }
-    .shell { min-height: 100vh; }
-    .topbar {
-      min-height: 76px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-      padding: 0 clamp(20px, 6vw, 88px);
-      background: var(--green-dark);
-      color: white;
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 3px solid rgba(23, 107, 82, .25); outline-offset: 2px;
     }
-    .brand { display: flex; align-items: center; gap: 12px; font: 700 20px 'Space Grotesk', sans-serif; }
+    .app-shell { min-height: 100vh; }
+    .sidebar {
+      position: fixed; inset: 0 auto 0 0; z-index: 5; display: flex; width: 248px;
+      flex-direction: column; padding: 27px 17px 18px; border-right: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; padding: 0 12px; color: var(--ink); text-decoration: none; }
     .brand-mark {
-      width: 32px; height: 32px; display: grid; place-items: center;
-      border-radius: 9px; background: var(--lime); color: var(--green-dark);
-      font-size: 17px;
+      display: grid; width: 36px; height: 36px; place-items: center; border-radius: 12px;
+      background: var(--green); color: #fff; font-size: 19px; font-weight: 800;
     }
-    .top-meta { display: flex; align-items: center; gap: 10px; color: #d0ddd7; font-size: 13px; }
-    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 4px rgba(199, 238, 121, .13); }
-    main { max-width: 1180px; margin: 0 auto; padding: 48px 24px 64px; }
-    .intro { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 30px; }
-    .eyebrow { margin: 0 0 8px; color: var(--green); font-size: 12px; font-weight: 700; text-transform: uppercase; }
-    h1, h2, p { margin-top: 0; }
-    h1 { margin-bottom: 8px; font: 600 clamp(27px, 4vw, 38px) 'Space Grotesk', sans-serif; }
-    .subtitle { margin: 0; color: var(--muted); font-size: 15px; }
-    .api-pill { display: flex; align-items: center; gap: 9px; padding: 10px 13px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--muted); font-size: 12px; white-space: nowrap; }
-    .api-pill b { color: var(--green); font-weight: 700; }
-    .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
-    .panel { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); }
-    .panel-head { display: flex; justify-content: space-between; align-items: center; padding: 21px 24px 17px; border-bottom: 1px solid var(--line); }
-    .panel-head h2 { margin: 0; font: 600 17px 'Space Grotesk', sans-serif; }
-    .step { color: var(--muted); font-size: 12px; }
-    .panel-body { padding: 22px 24px 24px; }
-    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-    .field { display: grid; gap: 7px; min-width: 0; }
-    .field.wide { grid-column: 1 / -1; }
-    label { color: #43514c; font-size: 12px; font-weight: 600; }
-    input, select {
-      width: 100%; min-height: 43px; padding: 10px 12px; border: 1px solid #dbe4dc;
-      border-radius: 5px; outline: none; background: #fff; color: var(--ink); font-size: 14px;
+    .brand-name { font-size: 19px; font-weight: 750; letter-spacing: -.7px; }
+    .brand-name span { color: var(--green); }
+    .nav-label { margin: 42px 12px 12px; color: #9aa39e; font-size: 10px; font-weight: 750; letter-spacing: 1.15px; text-transform: uppercase; }
+    .nav-list { display: grid; gap: 5px; }
+    .nav-item {
+      display: flex; min-height: 45px; align-items: center; gap: 12px; padding: 0 13px;
+      border: 0; border-radius: 10px; background: transparent; color: #66736d;
+      text-align: left; font-size: 13px; font-weight: 650;
+    }
+    .nav-item:hover { background: #f6f8f6; color: var(--ink); }
+    .nav-item.active { background: var(--green-soft); color: var(--green); }
+    .nav-item svg { width: 18px; height: 18px; flex: 0 0 auto; }
+    .sidebar-bottom { margin-top: auto; }
+    .support-card { padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: #fafbf9; }
+    .support-icon { display: grid; width: 31px; height: 31px; place-items: center; margin-bottom: 12px; border-radius: 9px; background: #e9f2ec; color: var(--green); }
+    .support-card strong { display: block; margin-bottom: 5px; font-size: 12px; }
+    .support-card p { margin: 0 0 11px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .support-link { padding: 0; border: 0; background: transparent; color: var(--green); font-size: 11px; font-weight: 750; }
+    .secure-note { display: flex; align-items: center; gap: 7px; padding: 18px 10px 0; color: #8a9690; font-size: 10px; }
+    .secure-note svg { width: 14px; height: 14px; color: var(--green); }
+    .workspace { min-height: 100vh; margin-left: 248px; }
+    .topbar {
+      position: sticky; top: 0; z-index: 4; display: flex; height: 75px; align-items: center;
+      justify-content: space-between; gap: 20px; padding: 0 clamp(22px, 4vw, 58px);
+      border-bottom: 1px solid var(--line); background: rgba(255,255,255,.92); backdrop-filter: blur(14px);
+    }
+    .breadcrumbs { color: #99a29d; font-size: 11px; }
+    .breadcrumbs strong { color: #42514a; font-weight: 650; }
+    .top-actions { display: flex; align-items: center; gap: 12px; }
+    .icon-button {
+      position: relative; display: grid; width: 38px; height: 38px; place-items: center;
+      border: 1px solid var(--line); border-radius: 11px; background: #fff; color: #5d6b64;
+    }
+    .icon-button svg { width: 17px; height: 17px; }
+    .notification-dot { position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; border: 1px solid white; border-radius: 50%; background: #d99144; }
+    .profile-button { display: flex; align-items: center; gap: 10px; padding: 0 0 0 4px; border: 0; background: transparent; text-align: left; }
+    .avatar { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 50%; background: #e5eee7; color: var(--green); font-size: 12px; font-weight: 800; }
+    .profile-copy strong, .profile-copy span { display: block; }
+    .profile-copy strong { max-width: 150px; overflow: hidden; color: #26342e; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .profile-copy span { margin-top: 3px; color: #929c96; font-size: 10px; }
+    .profile-details { display: grid; gap: 0; }
+    .profile-detail { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid #f0f2f0; }
+    .profile-detail:last-child { border-bottom: 0; }
+    .profile-detail span { color: #7e8983; font-size: 10px; }
+    .profile-detail strong { color: #26342e; font-size: 11px; text-align: right; overflow-wrap: anywhere; }
+    .profile-balance { margin: 4px 0 10px; color: var(--green); font-size: clamp(24px, 3vw, 32px); }
+    .profile-cards-panel { margin-top: 17px; }
+    .logout {
+      padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px;
+      background: white; color: #69756f; font-size: 11px; font-weight: 650;
+    }
+    main { width: min(100%, 1440px); margin: 0 auto; padding: 36px clamp(22px, 4vw, 58px) 60px; }
+    .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 25px; }
+    .eyebrow { margin: 0 0 8px; color: var(--green); font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 6px; font-size: clamp(24px, 3vw, 31px); font-weight: 700; letter-spacing: -1.1px; }
+    .page-subtitle { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .date-pill { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px; background: white; color: #718078; font-size: 10px; white-space: nowrap; }
+    .date-pill svg { width: 14px; height: 14px; }
+    .view { display: none; }
+    .view.active { display: block; animation: appear .2s ease-out; }
+    @keyframes appear { from { opacity: .5; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+    .overview-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .85fr); gap: 19px; align-items: start; }
+    .balance-card {
+      position: relative; overflow: hidden; min-height: 224px; padding: 25px 27px;
+      border-radius: 17px; background: linear-gradient(119deg, #155b46 0%, #124b3b 61%, #103c32 100%);
+      color: white; box-shadow: 0 16px 34px rgba(18, 77, 61, .15);
+    }
+    .balance-card::before, .balance-card::after { position: absolute; content: ""; pointer-events: none; }
+    .balance-card::before { top: -105px; right: -44px; width: 270px; height: 270px; border: 1px solid rgba(255,255,255,.10); border-radius: 50%; box-shadow: 0 0 0 28px rgba(255,255,255,.035), 0 0 0 57px rgba(255,255,255,.025); }
+    .balance-card::after { right: 24px; bottom: 20px; width: 57px; height: 57px; border: 1px solid rgba(211,239,155,.16); border-radius: 50%; background: rgba(211,239,155,.08); }
+    .balance-top, .balance-bottom { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .balance-label { display: flex; align-items: center; gap: 9px; color: rgba(255,255,255,.73); font-size: 11px; }
+    .balance-label svg { width: 16px; height: 16px; }
+    .visibility-button { display: grid; width: 31px; height: 31px; place-items: center; border: 1px solid rgba(255,255,255,.18); border-radius: 9px; background: rgba(255,255,255,.08); color: white; }
+    .visibility-button svg { width: 15px; height: 15px; }
+    .balance-amount { position: relative; z-index: 1; margin: 16px 0 21px; font-size: clamp(28px, 4vw, 39px); font-weight: 720; letter-spacing: -1.5px; }
+    .balance-amount span { margin-left: 5px; color: rgba(255,255,255,.65); font-size: 14px; font-weight: 550; letter-spacing: 0; }
+    .balance-bottom { justify-content: start; color: rgba(255,255,255,.72); font-size: 10px; }
+    .balance-bottom strong { color: white; font-weight: 650; }
+    .card-chip { display: grid; width: 26px; height: 20px; place-items: center; margin-right: 5px; border: 1px solid rgba(255,255,255,.45); border-radius: 5px; color: var(--lime); font-size: 12px; }
+    .balance-card-number { display: flex; align-items: center; }
+    .balance-actions { position: relative; z-index: 1; display: flex; gap: 9px; margin-top: 20px; }
+    .balance-action { display: flex; min-height: 34px; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid rgba(255,255,255,.22); border-radius: 8px; background: rgba(255,255,255,.09); color: white; font-size: 10px; font-weight: 650; }
+    .balance-action svg { width: 14px; height: 14px; }
+    .balance-action:hover { background: rgba(255,255,255,.16); }
+    .stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-top: 15px; }
+    .stat-card { min-height: 91px; padding: 15px 16px; border: 1px solid var(--line); border-radius: 13px; background: white; }
+    .stat-label { display: flex; align-items: center; gap: 7px; color: #7e8983; font-size: 10px; }
+    .stat-icon { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 8px; background: #edf5ef; color: var(--green); }
+    .stat-icon svg { width: 13px; height: 13px; }
+    .stat-value { display: block; margin: 10px 0 0 32px; font-size: 16px; font-weight: 720; letter-spacing: -.3px; }
+    .panel { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); }
+    .panel-header { display: flex; min-height: 59px; align-items: center; justify-content: space-between; gap: 10px; padding: 0 19px; border-bottom: 1px solid #eef0ee; }
+    .panel-title { margin: 0; font-size: 12px; font-weight: 720; }
+    .text-button { border: 0; background: transparent; color: var(--green); font-size: 10px; font-weight: 750; }
+    .panel-body { padding: 17px 19px; }
+    .quick-panel { position: sticky; top: 95px; }
+    .quick-intro { margin: 0 0 16px; color: var(--muted); font-size: 10px; line-height: 1.55; }
+    .field { display: grid; gap: 6px; margin-bottom: 13px; }
+    .field label { color: #59665f; font-size: 10px; font-weight: 700; }
+    .field input, .field select {
+      width: 100%; min-height: 41px; padding: 0 11px; border: 1px solid #e4e9e5;
+      border-radius: 8px; outline: none; background: #fff; color: var(--ink); font-size: 11px;
       transition: border-color .16s, box-shadow .16s;
     }
-    input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(23, 107, 82, .11); }
-    input::placeholder { color: #a2ada7; }
-    .form-actions { display: flex; align-items: center; gap: 12px; margin-top: 21px; }
-    .primary {
-      min-height: 44px; padding: 0 18px; border: 0; border-radius: 5px;
-      background: var(--green); color: white; font-weight: 700; transition: background .15s, transform .15s;
+    .field input:focus, .field select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(23,107,82,.09); }
+    .field input::placeholder { color: #a4ada8; }
+    .input-affix { position: relative; }
+    .input-affix input { padding-right: 45px; }
+    .input-affix span { position: absolute; top: 50%; right: 11px; color: #8b9690; font-size: 9px; transform: translateY(-50%); }
+    .primary-button {
+      display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px;
+      padding: 0 16px; border: 0; border-radius: 9px; background: var(--green); color: white;
+      font-size: 11px; font-weight: 750; transition: background .16s, transform .16s;
     }
-    .primary:hover { background: #10563f; transform: translateY(-1px); }
-    .primary:disabled { cursor: wait; opacity: .65; transform: none; }
-    .secondary { min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--green); font-weight: 700; }
-    .top-actions { display: flex; align-items: center; gap: 14px; }
-    .logout { border: 1px solid rgba(255,255,255,.35); border-radius: 5px; padding: 8px 12px; background: transparent; color: white; font-weight: 600; }
-    .helper { margin: 0; color: var(--muted); font-size: 12px; }
-    .result-panel { margin-top: 20px; padding: 18px 20px; border-left: 3px solid var(--green); background: #eff7ec; }
-    .result-panel.error { border-color: var(--red); background: #fff1ed; }
-    .result-title { margin: 0 0 5px; font-weight: 700; }
-    .result-copy { margin: 0; color: #53645c; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
-    .reason-heading { margin: 15px 0 7px; font-size: 13px; }
-    .reason-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-    .reason-item { padding: 10px 12px; border: 1px solid #dfe9df; border-radius: 5px; background: rgba(255, 255, 255, .7); }
-    .reason-feature { display: block; margin-bottom: 3px; font-size: 13px; }
-    .reason-impact { color: var(--red); font-size: 12px; font-weight: 700; }
-    .reason-note { margin-top: 8px; }
-    .result-panel[hidden] { display: none; }
-    .note { margin: 14px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-    .activity { margin-top: 20px; }
-    .activity-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
-    .activity-row:last-child { border-bottom: 0; }
-    .activity-label { font-weight: 600; font-size: 13px; }
-    .activity-status { font-size: 12px; font-weight: 700; }
-    .activity-status.fraud { color: var(--red); }
-    .activity-status.legitimate { color: var(--green); }
-    .activity-status.pending { color: #a76b00; }
-    .activity-meta { color: var(--muted); font-size: 11px; }
-    .activity-amount { grid-column: 2; grid-row: 2; color: var(--muted); font-size: 12px; text-align: right; }
-    .activity-empty { color: var(--muted); font-size: 13px; }
-    @media (max-width: 780px) {
-      main { padding-top: 34px; }
-      .layout { grid-template-columns: 1fr; }
-      .intro { align-items: start; flex-direction: column; }
+    .primary-button:hover { background: var(--green-dark); transform: translateY(-1px); }
+    .primary-button:disabled { cursor: wait; opacity: .62; transform: none; }
+    .primary-button svg { width: 15px; height: 15px; }
+    .quick-submit { width: 100%; }
+    .field-hint { margin: -5px 0 12px; color: #8a948f; font-size: 9px; }
+    .security-footnote { display: flex; align-items: center; justify-content: center; gap: 5px; margin: 12px 0 0; color: #8b9690; font-size: 9px; }
+    .security-footnote svg { width: 12px; height: 12px; color: var(--green); }
+    .activity-panel { margin-top: 18px; }
+    .activity-tools { display: flex; align-items: center; gap: 8px; }
+    .search-box { position: relative; }
+    .search-box svg { position: absolute; top: 50%; left: 10px; width: 13px; height: 13px; color: #929d97; transform: translateY(-50%); }
+    .search-box input { width: 165px; height: 31px; padding: 0 8px 0 29px; border: 1px solid var(--line); border-radius: 7px; outline: none; font-size: 10px; }
+    .activity-list { min-height: 120px; }
+    .transaction-row { display: grid; grid-template-columns: minmax(145px,1.3fr) minmax(90px,1fr) minmax(95px,.9fr) auto; align-items: center; gap: 12px; min-height: 62px; border-bottom: 1px solid #f0f2f0; }
+    .transaction-row:last-child { border-bottom: 0; }
+    .transaction-person { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .transaction-icon { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border-radius: 10px; background: #edf4ef; color: var(--green); }
+    .transaction-icon.incoming { background: #eff3fb; color: #5571ac; }
+    .transaction-icon svg { width: 15px; height: 15px; }
+    .transaction-person strong, .transaction-person span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .transaction-person strong { font-size: 10px; font-weight: 700; }
+    .transaction-person span { margin-top: 4px; color: #929c96; font-size: 9px; }
+    .transaction-date { color: #78847e; font-size: 9px; line-height: 1.45; }
+    .status-pill { display: inline-flex; align-items: center; gap: 5px; width: fit-content; padding: 5px 7px; border-radius: 20px; background: #edf6ef; color: #347556; font-size: 9px; font-weight: 700; white-space: nowrap; }
+    .status-pill.pending { background: #fff4e3; color: #9a671b; }
+    .status-pill.fraud { background: #fff0ef; color: #bc4942; }
+    .status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .transaction-amount { text-align: right; font-size: 10px; font-weight: 750; white-space: nowrap; }
+    .transaction-amount.incoming { color: var(--green); }
+    .transaction-amount.outgoing { color: #26342d; }
+    .empty-state, .loading-state { padding: 30px 12px; color: #8b9690; text-align: center; font-size: 11px; line-height: 1.6; }
+    .skeleton { height: 13px; margin: 11px 0; border-radius: 5px; background: linear-gradient(90deg,#f0f2f0,#fafbfa,#f0f2f0); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 15px; }
+    .account-card { position: relative; overflow: hidden; min-height: 172px; padding: 19px; border-radius: 14px; background: linear-gradient(132deg,#1b6a51,#123f35); color: white; }
+    .account-card::after { position: absolute; right: -35px; bottom: -96px; width: 190px; height: 190px; border: 1px solid rgba(255,255,255,.16); border-radius: 50%; box-shadow: 0 0 0 24px rgba(255,255,255,.04); content: ""; }
+    .account-card-top, .account-card-bottom { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
+    .account-card-brand { font-size: 12px; font-weight: 750; letter-spacing: .3px; }
+    .account-card-chip { width: 27px; height: 20px; border: 1px solid rgba(255,255,255,.62); border-radius: 5px; }
+    .account-pan-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 23px 0 7px; }
+    .account-pan { margin: 0; font-size: 13px; letter-spacing: 1.2px; white-space: nowrap; }
+    .account-card-copy { flex: 0 0 auto; padding: 5px 7px; border: 1px solid rgba(255,255,255,.3); border-radius: 6px; background: rgba(255,255,255,.1); color: white; font-size: 9px; font-weight: 650; }
+    .account-cardholder { position: relative; z-index: 1; margin: 0 0 15px; color: rgba(255,255,255,.75); font-size: 9px; text-transform: uppercase; }
+    .account-card-bottom { color: rgba(255,255,255,.75); font-size: 9px; }
+    .account-card-bottom strong { display: block; margin-top: 4px; color: white; font-size: 12px; }
+    .account-card-balance { text-align: right; }
+    .cards-summary { margin: 0 0 17px; color: var(--muted); font-size: 11px; }
+    .transactions-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .filter-select { height: 33px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: white; color: #627068; font-size: 10px; }
+    .table-heading { display: grid; grid-template-columns: minmax(160px,1.5fr) minmax(90px,1fr) minmax(90px,1fr) minmax(92px,.85fr) auto; gap: 12px; padding: 0 12px 10px; color: #9ba49e; font-size: 9px; font-weight: 750; letter-spacing: .4px; text-transform: uppercase; }
+    .transactions-table { padding: 0 12px; }
+    .transactions-table .transaction-row { grid-template-columns: minmax(160px,1.5fr) minmax(90px,1fr) minmax(90px,1fr) minmax(92px,.85fr) auto; }
+    .transactions-table .transaction-amount { text-align: left; }
+    .toast {
+      position: fixed; right: 24px; bottom: 24px; z-index: 10; display: flex; max-width: min(420px,calc(100vw - 32px));
+      align-items: flex-start; gap: 11px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px;
+      background: white; box-shadow: 0 16px 45px rgba(22,39,30,.16); font-size: 11px; line-height: 1.5;
     }
-    @media (max-width: 480px) {
-      .topbar { min-height: 64px; padding: 0 18px; }
-      .top-meta { font-size: 11px; }
-      main { padding: 27px 15px 42px; }
-      .panel-head { padding: 17px 17px 14px; }
-      .panel-body { padding: 18px 17px; }
-      .field-grid { gap: 13px 10px; }
-      .field-grid.transaction-grid { grid-template-columns: 1fr; }
-      .form-actions { align-items: stretch; flex-direction: column; }
-      .form-actions .primary { width: 100%; }
+    .toast[hidden] { display: none; }
+    .toast-mark { display: grid; width: 22px; height: 22px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #e9f4ed; color: var(--green); font-weight: 800; }
+    .toast.error .toast-mark { background: #fff0ef; color: var(--red); }
+    .toast strong { display: block; margin-bottom: 2px; font-size: 11px; }
+    .view-heading { margin: 4px 0 17px; }
+    .transfer-layout { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(260px,.85fr); gap: 18px; align-items: start; }
+    .transfer-form-card { padding: 21px; }
+    .transfer-form-card h2 { margin: 0 0 5px; font-size: 14px; }
+    .transfer-form-card > p { margin: 0 0 20px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 13px; }
+    .form-grid .field.full { grid-column: 1/-1; }
+    .amount-field input { min-height: 48px; font-size: 16px; font-weight: 650; }
+    .transfer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 6px; }
+    .fee-note { margin: 0; color: #818d86; font-size: 9px; }
+    .fee-note strong { color: #526058; }
+    .transfer-info { padding: 19px; }
+    .transfer-info h3 { margin: 0 0 9px; font-size: 12px; }
+    .transfer-info p { color: #748078; font-size: 10px; line-height: 1.6; }
+    .info-list { display: grid; gap: 12px; margin: 17px 0 0; padding: 0; list-style: none; }
+    .info-list li { display: flex; align-items: flex-start; gap: 9px; color: #68756e; font-size: 9px; line-height: 1.5; }
+    .info-check { display: grid; width: 18px; height: 18px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #eef5ef; color: var(--green); font-size: 10px; font-weight: 800; }
+    .mobile-nav { display: none; }
+    @media (max-width: 1060px) {
+      .sidebar { width: 220px; }
+      .workspace { margin-left: 220px; }
+      .overview-grid { grid-template-columns: minmax(0,1.2fr) minmax(260px,.8fr); }
+      .transaction-row { grid-template-columns: minmax(125px,1.2fr) minmax(75px,.8fr) auto; }
+      .transaction-row .status-pill { display: none; }
+    }
+    @media (max-width: 800px) {
+      .sidebar { width: 68px; align-items: center; padding: 19px 8px; }
+      .brand { padding: 0; }
+      .brand-name, .nav-label, .nav-item span, .support-card, .secure-note { display: none; }
+      .nav-list { width: 100%; margin-top: 32px; }
+      .nav-item { width: 50px; justify-content: center; padding: 0; }
+      .workspace { margin-left: 68px; }
+      .overview-grid { grid-template-columns: 1fr; }
+      .quick-panel { position: static; }
+      .quick-panel .panel-body { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 12px; }
+      .quick-intro { grid-column: 1/-1; }
+      .quick-submit, .security-footnote { grid-column: 1/-1; }
+      .activity-tools .search-box input { width: 130px; }
+      .transfer-layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .sidebar { display: none; }
+      .workspace { margin-left: 0; padding-bottom: 67px; }
+      .topbar { height: 61px; padding: 0 16px; }
+      .breadcrumbs { font-size: 10px; }
+      .profile-copy, .notification-button, .logout { display: none; }
+      main { padding: 24px 15px 36px; }
+      .page-heading { align-items: flex-start; margin-bottom: 18px; }
+      .date-pill { padding: 8px; font-size: 0; }
+      .date-pill svg { width: 16px; height: 16px; }
+      .balance-card { min-height: 207px; padding: 21px; }
+      .balance-amount { font-size: 31px; }
+      .stats-grid { gap: 9px; margin-top: 10px; }
+      .stat-card { min-height: 84px; padding: 12px; }
+      .stat-value { font-size: 14px; }
+      .quick-panel .panel-body { display: block; }
+      .activity-panel { margin-top: 12px; }
+      .panel-header { padding: 0 14px; }
+      .panel-body { padding: 12px 14px; }
+      .activity-tools .search-box input { width: 110px; }
+      .transaction-row { grid-template-columns: minmax(120px,1fr) auto; gap: 5px 8px; padding: 10px 0; }
+      .transaction-row .transaction-date { grid-column: 1; grid-row: 2; padding-left: 42px; }
+      .transaction-row .status-pill { display: none; }
+      .transaction-amount { grid-column: 2; grid-row: 1/3; }
+      .table-heading { display: none; }
+      .transactions-table { padding: 0 14px; }
+      .transactions-table .transaction-row { grid-template-columns: minmax(120px,1fr) auto; }
+      .transactions-table .transaction-row .transaction-date { grid-column: 1; grid-row: 2; }
+      .transactions-table .transaction-row .status-pill { display: none; }
+      .transactions-table .transaction-row .transaction-amount { grid-column: 2; grid-row: 1/3; text-align: right; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid .field.full { grid-column: auto; }
+      .transfer-form-card { padding: 17px; }
+      .transfer-bottom { align-items: stretch; flex-direction: column; }
+      .transfer-bottom .primary-button { width: 100%; }
+      .mobile-nav {
+        position: fixed; inset: auto 0 0; z-index: 6; display: grid; height: 64px;
+        grid-template-columns: repeat(5,1fr); border-top: 1px solid var(--line); background: rgba(255,255,255,.97);
+        padding-bottom: env(safe-area-inset-bottom); backdrop-filter: blur(14px);
+      }
+      .mobile-nav .nav-item { width: auto; min-height: 60px; flex-direction: column; gap: 4px; border-radius: 0; color: #89938e; font-size: 8px; }
+      .mobile-nav .nav-item span { display: block; }
+      .mobile-nav .nav-item.active { background: transparent; color: var(--green); }
+      .mobile-nav .nav-item svg { width: 17px; height: 17px; }
+      .toast { right: 12px; bottom: 76px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <header class="topbar">
-      <div class="brand"><span class="brand-mark" aria-hidden="true">↗</span> flowline</div>
-      <div class="top-actions">
-        <div class="top-meta"><span class="live-dot" aria-hidden="true"></span> <span>Himoyalangan sahifa</span></div>
-        <button class="logout" id="logout-button" type="button">Chiqish</button>
-      </div>
-    </header>
-
-    <main>
-      <section class="intro">
-        <div>
-          <p class="eyebrow">Operatsiyalar markazi</p>
-          <h1>Tranzaksiya nazorati</h1>
-          <p class="subtitle">Karta raqami orqali test tranzaksiyasini yuboring va to‘lov xavfini tekshiring.</p>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Asosiy navigatsiya">
+      <a class="brand" href="/" aria-label="Flowline bosh sahifa">
+        <span class="brand-mark" aria-hidden="true">f</span>
+        <span class="brand-name">flow<span>line</span></span>
+      </a>
+      <p class="nav-label">Menyu</p>
+      <nav class="nav-list" aria-label="Bo‘limlar">
+        <button class="nav-item active" type="button" data-view="overview" data-title="Bosh sahifa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg><span>Bosh sahifa</span>
+        </button>
+        <button class="nav-item" type="button" data-view="transfer" data-title="Pul o‘tkazish">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7h13m0 0-4-4m4 4-4 4M17 17H4m0 0 4 4m-4-4 4-4"/></svg><span>Pul o‘tkazish</span>
+        </button>
+        <button class="nav-item" type="button" data-view="transactions" data-title="Tranzaksiyalar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 10h16M4 15h10M4 20h8"/><circle cx="18" cy="17" r="3"/></svg><span>Tranzaksiyalar</span>
+        </button>
+        <button class="nav-item" type="button" data-view="cards" data-title="Kartalarim">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="4.5" width="19" height="15" rx="3"/><path d="M3 9h18M7 15h4"/></svg><span>Kartalarim</span>
+        </button>
+        <button class="nav-item" type="button" data-view="profile" data-title="Profilim">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Profilim</span>
+        </button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="support-card">
+          <span class="support-icon" aria-hidden="true">?</span>
+          <strong>Yordam kerakmi?</strong>
+          <p>Hisobingiz yoki o‘tkazmalar bo‘yicha savol bormi?</p>
+          <button class="support-link" id="support-button" type="button">Yordam markazi →</button>
         </div>
-        <div class="api-pill"><span class="live-dot" aria-hidden="true"></span> API <b id="api-state">tekshirilmoqda</b></div>
-      </section>
+        <div class="secure-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>Himoyalangan ulanish</span>
+        </div>
+      </div>
+    </aside>
 
-      <div class="layout">
-        <div>
-          <section class="panel">
-            <div class="panel-head"><h2>Yangi tranzaksiya</h2><span class="step">01 / Tahlil</span></div>
-            <div class="panel-body">
-              <form id="transaction-form">
-                <div class="field-grid transaction-grid">
-                  <div class="field"><label for="sender-card">Jo‘natuvchi karta raqami</label><input id="sender-card" name="sender_card_number" inputmode="numeric" pattern="[0-9]{16}" maxlength="16" placeholder="9860123412341234" required></div>
-                  <div class="field"><label for="receiver-card">Qabul qiluvchi karta raqami</label><input id="receiver-card" name="receiver_card_number" inputmode="numeric" pattern="[0-9]{16}" maxlength="16" placeholder="9860123412341234" required></div>
-                  <div class="field"><label for="amount">Miqdor (kamida 1 000 UZS)</label><input id="amount" name="amount" type="number" min="1000" step="0.01" placeholder="250000" required></div>
-                  <div class="field"><label for="currency">Valyuta</label><select id="currency" name="currency"><option value="UZS">UZS</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
-                  <div class="field"><label for="country">Davlat</label><input id="country" name="country" value="Uzbekistan" required></div>
-                  <div class="field"><label for="city">Shahar</label><input id="city" name="city" value="Tashkent" required></div>
-                  <div class="field"><label for="recent-count">Oxirgi 10 daqiqadagi tranzaksiyalar</label><input id="recent-count" name="transactions_last_10_min" type="number" min="0" value="0" required></div>
-                  <div class="field"><label for="device">Qurilma</label><select id="device" name="is_new_device"><option value="false">Tanish qurilma</option><option value="true">Yangi qurilma</option></select></div>
-                  <div class="field"><label for="step">PaySim bosqichi</label><input id="step" name="step" type="number" min="0" value="1" required></div>
-                  <div class="field"><label for="type">Tranzaksiya turi</label><select id="type" name="type"><option value="TRANSFER">TRANSFER</option><option value="CASH_OUT">CASH_OUT</option><option value="PAYMENT">PAYMENT</option><option value="CASH_IN">CASH_IN</option><option value="DEBIT">DEBIT</option></select></div>
-                  <div class="field wide"><label for="flagged">Manbada oldindan firibgarlik belgisi</label><select id="flagged" name="isFlaggedFraud"><option value="0">Yo‘q</option><option value="1">Ha</option></select></div>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="breadcrumbs">Kabinet <span aria-hidden="true">/</span> <strong id="breadcrumb-title">Bosh sahifa</strong></div>
+        <div class="top-actions">
+          <button class="icon-button notification-button" type="button" aria-label="Bildirishnomalar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+          </button>
+          <button class="profile-button" id="profile-button" type="button" aria-label="Profilim">
+            <span class="avatar" id="profile-avatar" aria-hidden="true">F</span>
+            <span class="profile-copy"><strong id="profile-name">Hisob egasi</strong><span>Shaxsiy hisob</span></span>
+          </button>
+          <button class="logout" id="logout-button" type="button">Chiqish</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="view active" id="view-overview" aria-labelledby="page-title">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Shaxsiy kabinet</p>
+              <h1 id="page-title">Xayrli kun, <span id="greeting-name">...</span></h1>
+              <p class="page-subtitle">Hisoblaringiz va so‘nggi operatsiyalaringiz bir joyda.</p>
+            </div>
+            <div class="date-pill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+              <span id="today-date"></span>
+            </div>
+          </div>
+
+          <div class="overview-grid">
+            <div>
+              <section class="balance-card" aria-label="Umumiy balans">
+                <div class="balance-top">
+                  <div class="balance-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M3 10h18M7 15h3"/></svg>
+                    <span>Jami balans</span>
+                  </div>
+                  <button class="visibility-button" id="balance-toggle" type="button" aria-label="Balansni yashirish">
+                    <svg id="balance-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
                 </div>
-                <div class="form-actions"><button class="primary" type="submit">Xavfni tekshirish</button><p class="helper">Natija modelning joriy risk bahosiga asoslanadi.</p></div>
+                <p class="balance-amount" id="total-balance">— <span>UZS</span></p>
+                <div class="balance-bottom">
+                  <div class="balance-card-number"><span class="card-chip" aria-hidden="true">▦</span><strong id="primary-card-label">Karta yuklanmoqda</strong></div>
+                </div>
+                <div class="balance-actions">
+                  <button class="balance-action" type="button" data-go="transfer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7h13m0 0-4-4m4 4-4 4M17 17H4m0 0 4 4m-4-4 4-4"/></svg>Pul o‘tkazish
+                  </button>
+                  <button class="balance-action" type="button" data-go="cards">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="4.5" width="19" height="15" rx="3"/><path d="M3 9h18"/></svg>Kartalar
+                  </button>
+                </div>
+              </section>
+
+              <div class="stats-grid" aria-label="Hisob ko‘rsatkichlari">
+                <article class="stat-card">
+                  <div class="stat-label"><span class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="4.5" width="19" height="15" rx="3"/><path d="M3 9h18"/></svg></span>Faol kartalar</div>
+                  <strong class="stat-value" id="card-count">—</strong>
+                </article>
+                <article class="stat-card">
+                  <div class="stat-label"><span class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 10h16M4 15h10M4 20h8"/></svg></span>So‘nggi operatsiyalar</div>
+                  <strong class="stat-value" id="transaction-count">—</strong>
+                </article>
+              </div>
+
+              <section class="panel activity-panel">
+                <div class="panel-header">
+                  <h2 class="panel-title">So‘nggi operatsiyalar</h2>
+                  <div class="activity-tools">
+                    <label class="search-box">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg>
+                      <input id="overview-search" type="search" placeholder="Qidirish..." aria-label="Tranzaksiyalarni qidirish">
+                    </label>
+                    <button class="text-button" type="button" data-go="transactions">Barchasi</button>
+                  </div>
+                </div>
+                <div class="panel-body activity-list" id="recent-list"><div class="loading-state"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div>
+              </section>
+            </div>
+
+            <section class="panel quick-panel" aria-labelledby="quick-transfer-title">
+              <div class="panel-header">
+                <h2 class="panel-title" id="quick-transfer-title">Tezkor o‘tkazma</h2>
+                <span class="step">UZS</span>
+              </div>
+              <div class="panel-body">
+                <p class="quick-intro">Karta raqamini kiriting va xavfsiz pul o‘tkazmasini amalga oshiring.</p>
+                <form id="quick-transfer-form">
+                  <div class="field">
+                    <label for="quick-sender-card">Qaysi kartadan</label>
+                    <select id="quick-sender-card" name="sender_card_id" required disabled>
+                      <option value="">Kartalar yuklanmoqda...</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="quick-recipient">Qabul qiluvchi karta</label>
+                    <input id="quick-recipient" name="receiver_card_number" inputmode="numeric" autocomplete="off" maxlength="19" placeholder="8600 0000 0000 0000" required>
+                  </div>
+                  <div class="field">
+                    <label for="quick-amount">O‘tkazma summasi</label>
+                    <div class="input-affix"><input id="quick-amount" name="amount" type="number" min="1000" step="1000" placeholder="0" required><span>UZS</span></div>
+                  </div>
+                  <p class="field-hint" id="available-balance-hint">Mablag‘ limitini ko‘rish uchun kartani tanlang.</p>
+                  <button class="primary-button quick-submit" type="submit">
+                    Davom etish
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+                  </button>
+                  <p class="security-footnote">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg>
+                    Har bir o‘tkazma xavfsizlik tekshiruvidan o‘tadi
+                  </p>
+                </form>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-transfer" aria-labelledby="transfer-title">
+          <div class="view-heading">
+            <p class="eyebrow">To‘lovlar</p>
+            <h1 id="transfer-title">Pul o‘tkazish</h1>
+            <p class="page-subtitle">Kartadan kartaga xavfsiz o‘tkazma yuboring.</p>
+          </div>
+          <div class="transfer-layout">
+            <section class="panel transfer-form-card">
+              <h2>O‘tkazma ma’lumotlari</h2>
+              <p>Ma’lumotlarni tekshirib, davom etish tugmasini bosing.</p>
+              <form id="full-transfer-form">
+                <div class="form-grid">
+                  <div class="field full">
+                    <label for="full-sender-card">Jo‘natuvchi karta</label>
+                    <select id="full-sender-card" name="sender_card_id" required disabled><option value="">Kartalar yuklanmoqda...</option></select>
+                  </div>
+                  <div class="field full">
+                    <label for="full-recipient">Qabul qiluvchining karta raqami</label>
+                    <input id="full-recipient" name="receiver_card_number" inputmode="numeric" autocomplete="off" maxlength="19" placeholder="8600 0000 0000 0000" required>
+                  </div>
+                  <div class="field full amount-field">
+                    <label for="full-amount">O‘tkazma summasi</label>
+                    <div class="input-affix"><input id="full-amount" name="amount" type="number" min="1000" step="1000" placeholder="0" required><span>UZS</span></div>
+                  </div>
+                  <div class="field">
+                    <label for="transfer-city">Shahar</label>
+                    <input id="transfer-city" name="city" value="Toshkent" maxlength="100" required>
+                  </div>
+                  <div class="field">
+                    <label for="transfer-country">Davlat</label>
+                    <input id="transfer-country" name="country" value="O‘zbekiston" maxlength="100" required>
+                  </div>
+                </div>
+                <div class="transfer-bottom">
+                  <p class="fee-note">Komissiya <strong>0 UZS</strong></p>
+                  <button class="primary-button" type="submit">
+                    O‘tkazmani tekshirish
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+                  </button>
+                </div>
               </form>
-              <div id="transaction-result" class="result-panel" role="status" aria-live="polite" hidden></div>
+            </section>
+            <aside class="panel transfer-info">
+              <h3>Xavfsiz o‘tkazma</h3>
+              <p>O‘tkazmani tasdiqlashdan oldin qabul qiluvchi karta raqami va summani diqqat bilan tekshiring.</p>
+              <ul class="info-list">
+                <li><span class="info-check">✓</span><span>Har bir operatsiya firibgarlikka qarshi model tomonidan tekshiriladi.</span></li>
+                <li><span class="info-check">✓</span><span>Tekshiruv talab qiladigan o‘tkazmalar tasdiqlanmaguncha balansdan yechilmaydi.</span></li>
+                <li><span class="info-check">✓</span><span>O‘tkazma natijasi va holatini operatsiyalar tarixidan ko‘rishingiz mumkin.</span></li>
+              </ul>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-transactions" aria-labelledby="transactions-title">
+          <div class="view-heading">
+            <p class="eyebrow">Hisob harakati</p>
+            <h1 id="transactions-title">Tranzaksiyalar</h1>
+            <p class="page-subtitle">Hisobingiz bo‘yicha so‘nggi kirim va chiqimlar.</p>
+          </div>
+          <section class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">Operatsiyalar tarixi</h2>
+              <div class="activity-tools">
+                <label class="search-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg>
+                  <input id="history-search" type="search" placeholder="Qidirish..." aria-label="Tarixdan qidirish">
+                </label>
+                <select class="filter-select" id="history-filter" aria-label="Holat bo‘yicha saralash">
+                  <option value="all">Barcha holatlar</option>
+                  <option value="completed">Yakunlangan</option>
+                  <option value="pending">Tekshiruvda</option>
+                  <option value="fraud">Shubhali</option>
+                </select>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="table-heading"><span>Operatsiya</span><span>Sana</span><span>Holat</span><span>Summa</span><span></span></div>
+              <div class="transactions-table" id="history-list"><div class="loading-state">Tarix yuklanmoqda...</div></div>
             </div>
           </section>
+        </section>
 
-          <section class="panel activity">
-            <div class="panel-head"><h2>So‘nggi tahlillar</h2><span class="step">Ushbu seans</span></div>
-            <div class="panel-body" id="activity-list"><p class="activity-empty">Hozircha tahlil yo‘q.</p></div>
+        <section class="view" id="view-cards" aria-labelledby="cards-title">
+          <div class="view-heading">
+            <p class="eyebrow">Hisoblar</p>
+            <h1 id="cards-title">Kartalarim</h1>
+            <p class="page-subtitle">Faol kartalaringiz va ulardagi mablag‘lar.</p>
+          </div>
+          <p class="cards-summary" id="cards-summary">Kartalar yuklanmoqda...</p>
+          <div class="cards-grid" id="cards-grid"><div class="loading-state">Kartalar yuklanmoqda...</div></div>
+        </section>
+
+        <section class="view" id="view-profile" aria-labelledby="profile-title">
+          <div class="view-heading">
+            <p class="eyebrow">Shaxsiy ma’lumotlar</p>
+            <h1 id="profile-title">Profilim</h1>
+            <p class="page-subtitle">Profil, hisob balansi va kartalaringiz haqidagi ma’lumotlar.</p>
+          </div>
+          <div class="overview-grid">
+            <section class="panel">
+              <div class="panel-header"><h2 class="panel-title">Hisob egasi</h2></div>
+              <div class="panel-body profile-details">
+                <div class="profile-detail"><span>Ism va familiya</span><strong id="profile-full-name">Yuklanmoqda...</strong></div>
+                <div class="profile-detail"><span>Telefon raqami</span><strong id="profile-phone">—</strong></div>
+                <div class="profile-detail"><span>Faol kartalar</span><strong id="profile-card-count">—</strong></div>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-header"><h2 class="panel-title">Jami hisob balansi</h2></div>
+              <div class="panel-body">
+                <p class="balance-amount profile-balance" id="profile-balance">— <span>UZS</span></p>
+                <p class="page-subtitle">Faqat faol kartalardagi mablag‘lar hisoblangan.</p>
+              </div>
+            </section>
+          </div>
+          <section class="panel profile-cards-panel">
+            <div class="panel-header"><h2 class="panel-title">Mening kartalarim</h2></div>
+            <div class="panel-body"><div class="cards-grid" id="profile-cards-grid"><div class="loading-state">Kartalar yuklanmoqda...</div></div></div>
           </section>
-        </div>
+        </section>
+      </main>
+    </div>
+  </div>
 
-      </div>
-    </main>
+  <nav class="mobile-nav" aria-label="Mobil navigatsiya">
+    <button class="nav-item active" type="button" data-view="overview" data-title="Bosh sahifa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg><span>Bosh sahifa</span>
+    </button>
+    <button class="nav-item" type="button" data-view="transfer" data-title="O‘tkazma">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7h13m0 0-4-4m4 4-4 4M17 17H4m0 0 4 4m-4-4 4-4"/></svg><span>O‘tkazma</span>
+    </button>
+    <button class="nav-item" type="button" data-view="transactions" data-title="Tarix">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 10h16M4 15h10M4 20h8"/><circle cx="18" cy="17" r="3"/></svg><span>Tarix</span>
+    </button>
+    <button class="nav-item" type="button" data-view="cards" data-title="Kartalar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="4.5" width="19" height="15" rx="3"/><path d="M3 9h18M7 15h4"/></svg><span>Kartalar</span>
+    </button>
+    <button class="nav-item" type="button" data-view="profile" data-title="Profil">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Profil</span>
+    </button>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span class="toast-mark" id="toast-mark">✓</span>
+    <div><strong id="toast-title"></strong><span id="toast-message"></span></div>
   </div>
 
   <script>
-    const transactions = [];
-    const apiState = document.querySelector('#api-state');
-    const accessToken = sessionStorage.getItem('accessToken');
+    const token = sessionStorage.getItem('accessToken');
+    const state = { cards: [], transactions: [], profile: null, balance: null, balanceVisible: true, toastTimer: null };
+    const money = new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 });
+    const dateFormat = new Intl.DateTimeFormat('uz-Latn-UZ', { day: '2-digit', month: 'short', year: 'numeric' });
 
-    if (!accessToken) window.location.replace('/login/');
+    if (!token) window.location.replace('/login/');
+
+    async function api(path, options = {}) {
+      let response;
+      try {
+        response = await fetch(path, {
+          ...options,
+          headers: {
+            ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+            Authorization: `Bearer ${token}`,
+            ...options.headers,
+          },
+        });
+      } catch {
+        throw new Error('Server bilan bog‘lanib bo‘lmadi. Internet yoki server holatini tekshiring.');
+      }
+      const text = await response.text();
+      let body;
+      try { body = text ? JSON.parse(text) : null; }
+      catch { throw new Error(`Server JSON formatida javob bermadi (HTTP ${response.status}).`); }
+      if (response.status === 401) {
+        sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('cardNumber');
+        window.location.replace('/login/');
+        throw new Error('Sessiya tugadi. Qaytadan tizimga kiring.');
+      }
+      if (!response.ok) {
+        const detail = body?.detail;
+        throw new Error(typeof detail === 'string' ? detail : detail ? JSON.stringify(detail) : `So‘rov bajarilmadi (HTTP ${response.status}).`);
+      }
+      return body;
+    }
+
+    function showToast(title, message, isError = false) {
+      const toast = document.querySelector('#toast');
+      toast.classList.toggle('error', isError);
+      document.querySelector('#toast-mark').textContent = isError ? '!' : '✓';
+      document.querySelector('#toast-title').textContent = title;
+      document.querySelector('#toast-message').textContent = message;
+      toast.hidden = false;
+      clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => { toast.hidden = true; }, 5200);
+    }
+
+    function formatMoney(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? money.format(number) : '0';
+    }
+
+    function createIcon(direction) {
+      const wrapper = document.createElement('span');
+      wrapper.className = `transaction-icon ${direction === 'incoming' ? 'incoming' : ''}`;
+      wrapper.innerHTML = direction === 'incoming'
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 17 17 7M7 7h10v10"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7 17 17M17 7H7v10"/></svg>';
+      return wrapper;
+    }
+
+    function transactionStatus(transaction) {
+      const lifecycle = String(transaction.transaction_status || '').toLowerCase();
+      const fraud = String(transaction.status || '').toLowerCase();
+      if (lifecycle.includes('pending') || lifecycle.includes('review')) return { label: 'Tekshiruvda', className: 'pending' };
+      if (fraud === 'fraud' || transaction.is_fraud) return { label: 'Shubhali', className: 'fraud' };
+      return { label: 'Yakunlandi', className: '' };
+    }
+
+    function transactionRow(transaction, compact = false) {
+      const row = document.createElement('div');
+      row.className = 'transaction-row';
+      const direction = transaction.direction || 'outgoing';
+      const person = document.createElement('div');
+      person.className = 'transaction-person';
+      person.append(createIcon(direction));
+      const copy = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = direction === 'incoming'
+        ? `Kirim • ${transaction.sender || 'Karta'}`
+        : `O‘tkazma • ${transaction.receiver || 'Karta'}`;
+      const subtitle = document.createElement('span');
+      subtitle.textContent = `Tranzaksiya #${transaction.transaction_id ?? '—'}`;
+      copy.append(title, subtitle);
+      person.append(copy);
+
+      const date = document.createElement('span');
+      date.className = 'transaction-date';
+      const parsedDate = transaction.created_at ? new Date(transaction.created_at) : null;
+      date.textContent = parsedDate && !Number.isNaN(parsedDate.valueOf())
+        ? `${dateFormat.format(parsedDate)} · ${parsedDate.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`
+        : 'Sana ko‘rsatilmagan';
+
+      const status = transactionStatus(transaction);
+      const badge = document.createElement('span');
+      badge.className = `status-pill ${status.className}`;
+      badge.innerHTML = '<span class="status-dot"></span>';
+      badge.append(document.createTextNode(status.label));
+
+      const amount = document.createElement('span');
+      amount.className = `transaction-amount ${direction}`;
+      amount.textContent = `${direction === 'incoming' ? '+' : '−'}${formatMoney(transaction.amount)} ${transaction.currency || 'UZS'}`;
+      row.append(person, date, badge, amount);
+      if (!compact && transaction.risk_score !== null && transaction.risk_score !== undefined) {
+        row.title = `Xavfsizlik tekshiruvi: ${(Number(transaction.risk_score) * 100).toFixed(1)}%`;
+      }
+      return row;
+    }
+
+    function setEmpty(container, message) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = message;
+      container.replaceChildren(empty);
+    }
+
+    function renderTransactions() {
+      const recent = document.querySelector('#recent-list');
+      const history = document.querySelector('#history-list');
+      const recentRows = state.transactions.slice(0, 5);
+      recent.replaceChildren();
+      history.replaceChildren();
+      if (!state.transactions.length) {
+        setEmpty(recent, 'Hozircha operatsiyalar mavjud emas.');
+        setEmpty(history, 'Tranzaksiya tarixi bo‘sh. Birinchi o‘tkazmangizni amalga oshiring.');
+        return;
+      }
+      for (const transaction of recentRows) recent.append(transactionRow(transaction, true));
+
+      const searchTerm = document.querySelector('#history-search').value.trim().toLowerCase();
+      const filter = document.querySelector('#history-filter').value;
+      const filtered = state.transactions.filter((transaction) => {
+        const searchable = `${transaction.transaction_id} ${transaction.sender} ${transaction.receiver} ${transaction.city}`.toLowerCase();
+        if (searchTerm && !searchable.includes(searchTerm)) return false;
+        const lifecycle = String(transaction.transaction_status || '').toLowerCase();
+        const fraud = String(transaction.status || '').toLowerCase();
+        if (filter === 'pending') return lifecycle.includes('pending') || lifecycle.includes('review');
+        if (filter === 'fraud') return fraud === 'fraud';
+        if (filter === 'completed') return lifecycle === 'completed';
+        return true;
+      });
+      if (!filtered.length) {
+        setEmpty(history, state.transactions.length ? 'Qidiruv bo‘yicha tranzaksiya topilmadi.' : 'Tranzaksiya tarixi bo‘sh.');
+      } else {
+        for (const transaction of filtered) history.append(transactionRow(transaction));
+      }
+      document.querySelector('#transaction-count').textContent = String(state.transactions.length);
+    }
+
+    function renderCards() {
+      const total = Number(state.balance?.total_balance ?? state.cards.reduce((sum, card) => sum + Number(card.balance || 0), 0));
+      document.querySelector('#total-balance').innerHTML = `${state.balanceVisible ? `${formatMoney(total)}` : '••••••••'} <span>UZS</span>`;
+      document.querySelector('#profile-balance').innerHTML = `${state.balanceVisible ? formatMoney(total) : '••••••••'} <span>UZS</span>`;
+      document.querySelector('#card-count').textContent = String(state.balance?.cards_count ?? state.cards.length);
+      document.querySelector('#profile-card-count').textContent = String(state.balance?.cards_count ?? state.cards.length);
+      const defaultCard = state.cards.find((card) => card.is_default) || state.cards[0];
+      document.querySelector('#primary-card-label').textContent = defaultCard ? `••••  ••••  ••••  ${defaultCard.last4}` : 'Faol karta topilmadi';
+      const cardsCount = Number(state.balance?.cards_count ?? state.cards.length);
+      document.querySelector('#cards-summary').textContent = cardsCount
+        ? `${cardsCount} ta faol karta · Jami balans ${formatMoney(total)} UZS`
+        : 'Hozircha faol karta mavjud emas.';
+
+      const selectors = ['#quick-sender-card', '#full-sender-card'];
+      for (const selector of selectors) {
+        const select = document.querySelector(selector);
+        select.replaceChildren();
+        if (!state.cards.length) {
+          select.add(new Option('Faol karta topilmadi', ''));
+          select.disabled = true;
+          continue;
+        }
+        for (const card of state.cards) {
+          const option = new Option(`${card.display_pan} · ${formatMoney(card.balance)} UZS`, String(card.id));
+          option.dataset.balance = String(card.balance);
+          option.dataset.last4 = card.last4;
+          select.add(option);
+        }
+        select.disabled = false;
+      }
+      updateAvailableBalance();
+
+      const grids = [document.querySelector('#cards-grid'), document.querySelector('#profile-cards-grid')];
+      for (const grid of grids) grid.replaceChildren();
+      if (!state.cards.length) {
+        for (const grid of grids) setEmpty(grid, 'Hisobingizga biriktirilgan faol karta topilmadi.');
+        return;
+      }
+      for (const card of state.cards) {
+        const element = document.createElement('article');
+        element.className = 'account-card';
+        const top = document.createElement('div');
+        top.className = 'account-card-top';
+        const brand = document.createElement('span');
+        brand.className = 'account-card-brand';
+        brand.textContent = 'flowline';
+        const chip = document.createElement('span');
+        chip.className = 'account-card-chip';
+        top.append(brand, chip);
+        const panRow = document.createElement('div');
+        panRow.className = 'account-pan-row';
+        const pan = document.createElement('p');
+        pan.className = 'account-pan';
+        pan.textContent = formattedCard(card.card_number || '');
+        const copyButton = document.createElement('button');
+        copyButton.className = 'account-card-copy';
+        copyButton.type = 'button';
+        copyButton.dataset.copyCard = card.card_number || '';
+        copyButton.textContent = 'Nusxalash';
+        copyButton.setAttribute('aria-label', 'Karta raqamini nusxalash');
+        panRow.append(pan, copyButton);
+        const cardholder = document.createElement('p');
+        cardholder.className = 'account-cardholder';
+        cardholder.textContent = card.cardholder_name || '';
+        const bottom = document.createElement('div');
+        bottom.className = 'account-card-bottom';
+        const type = document.createElement('span');
+        type.innerHTML = `UZCARD<br><strong>${card.is_default ? 'Asosiy karta' : 'Faol karta'}</strong>`;
+        const balance = document.createElement('span');
+        balance.className = 'account-card-balance';
+        balance.innerHTML = `Mavjud mablag‘<br><strong>${formatMoney(card.balance)} UZS</strong>`;
+        bottom.append(type, balance);
+        element.append(top, panRow, cardholder, bottom);
+        for (const grid of grids) grid.append(element.cloneNode(true));
+      }
+    }
+
+    function updateAvailableBalance() {
+      for (const selector of ['#quick-sender-card', '#full-sender-card']) {
+        const select = document.querySelector(selector);
+        const amountField = select.id === 'quick-sender-card' ? '#quick-amount' : '#full-amount';
+        const hint = document.querySelector('#available-balance-hint');
+        const card = state.cards.find((item) => String(item.id) === select.value);
+        if (card) {
+          document.querySelector(amountField).max = String(card.balance);
+          if (hint && select.id === 'quick-sender-card') hint.textContent = `Mavjud: ${formatMoney(card.balance)} UZS`;
+        }
+      }
+    }
+
+    function navigate(viewName, title) {
+      for (const view of document.querySelectorAll('.view')) view.classList.toggle('active', view.id === `view-${viewName}`);
+      for (const button of document.querySelectorAll('[data-view]')) {
+        const selected = button.dataset.view === viewName;
+        button.classList.toggle('active', selected);
+        if (selected) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
+      }
+      document.querySelector('#breadcrumb-title').textContent = title;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function digitsOnly(value) { return value.replace(/\D/g, '').slice(0, 16); }
+    function formattedCard(value) { return digitsOnly(value).replace(/(\d{4})(?=\d)/g, '$1 '); }
+
+    async function submitTransfer(form) {
+      const submit = form.querySelector('button[type="submit"]');
+      const senderCardId = Number(form.elements.sender_card_id.value);
+      const recipient = digitsOnly(form.elements.receiver_card_number.value);
+      const amount = Number(form.elements.amount.value);
+      const city = form.elements.city?.value.trim() || 'Toshkent';
+      const country = form.elements.country?.value.trim() || 'O‘zbekiston';
+      const senderCard = state.cards.find((card) => card.id === senderCardId);
+      if (!senderCard) throw new Error('Jo‘natuvchi kartani tanlang.');
+      if (recipient.length !== 16) throw new Error('Qabul qiluvchi karta raqami 16 ta raqamdan iborat bo‘lishi kerak.');
+      if (amount < 1000 || !Number.isFinite(amount)) throw new Error('O‘tkazma summasi kamida 1 000 UZS bo‘lishi kerak.');
+      if (amount > senderCard.balance) throw new Error('Kartada mablag‘ yetarli emas.');
+
+      submit.disabled = true;
+      const originalMarkup = submit.innerHTML;
+      submit.textContent = 'Xavfsiz tekshiruv...';
+      try {
+        const result = await api('/transaction/add/', {
+          method: 'POST',
+          body: JSON.stringify({
+            sender_card_id: senderCardId,
+            receiver_card_number: recipient,
+            amount,
+            currency: 'UZS',
+            country,
+            city,
+            transactions_last_10_min: 0,
+            is_new_device: false,
+          }),
+        });
+        const isPending = String(result.transaction_status || '').toLowerCase().includes('pending');
+        showToast(
+          isPending ? 'O‘tkazma tekshiruvda' : 'O‘tkazma qabul qilindi',
+          isPending
+            ? `Tranzaksiya #${result.transaction_id} xavfsizlik tekshiruvidan o‘tmoqda. Mablag‘ hozircha balansda qoladi.`
+            : `Tranzaksiya #${result.transaction_id} muvaffaqiyatli bajarildi.`,
+        );
+        form.reset();
+        await loadDashboard();
+        navigate('overview', 'Bosh sahifa');
+      } catch (error) {
+        showToast('O‘tkazma bajarilmadi', error.message, true);
+      } finally {
+        submit.disabled = false;
+        submit.innerHTML = originalMarkup;
+        updateAvailableBalance();
+      }
+    }
+
+    async function loadDashboard() {
+      try {
+        const [profile, cards, balance, history] = await Promise.all([
+          api('/user/profile/'),
+          api('/user/cards/'),
+          api('/user/balance/'),
+          api('/transaction/history/?limit=50'),
+        ]);
+        state.profile = profile;
+        state.cards = Array.isArray(cards) ? cards : [];
+        state.balance = balance;
+        state.transactions = Array.isArray(history) ? history : [];
+        const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'foydalanuvchi';
+        const firstName = profile.first_name || 'foydalanuvchi';
+        document.querySelector('#profile-name').textContent = fullName;
+        document.querySelector('#greeting-name').textContent = firstName;
+        document.querySelector('#profile-avatar').textContent = firstName[0].toLocaleUpperCase('uz-UZ');
+        document.querySelector('#profile-full-name').textContent = fullName;
+        document.querySelector('#profile-phone').textContent = profile.phone || '—';
+        renderCards();
+        renderTransactions();
+      } catch (error) {
+        showToast('Ma’lumotlarni yuklab bo‘lmadi', error.message, true);
+        document.querySelector('#recent-list').textContent = 'Ma’lumotlarni yuklashda xatolik. Sahifani yangilang.';
+        document.querySelector('#history-list').textContent = 'Tarixni yuklashda xatolik.';
+      }
+    }
+
+    document.querySelector('#today-date').textContent = new Intl.DateTimeFormat('uz-Latn-UZ', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+    document.querySelector('.notification-button').addEventListener('click', () => {
+      showToast('Bildirishnomalar', 'Hozircha yangi bildirishnoma yo‘q.');
+    });
+    document.querySelector('#support-button').addEventListener('click', () => {
+      showToast('Yordam markazi', 'Yordam kanali ushbu loyihada hali ulanmagan.', true);
+    });
     document.querySelector('#logout-button').addEventListener('click', () => {
       sessionStorage.removeItem('accessToken');
       sessionStorage.removeItem('cardNumber');
       window.location.replace('/login/');
     });
-    document.querySelector('#sender-card').value = sessionStorage.getItem('cardNumber') || '';
-
-    function showResult(element, title, message, isError = false, details = []) {
-      element.hidden = false;
-      element.classList.toggle('error', isError);
-      element.innerHTML = '';
-      const heading = document.createElement('p');
-      heading.className = 'result-title';
-      heading.textContent = title;
-      const copy = document.createElement('p');
-      copy.className = 'result-copy';
-      copy.textContent = message;
-      element.append(heading, copy);
-      if (details.length) {
-        const reasonHeading = document.createElement('h3');
-        reasonHeading.className = 'reason-heading';
-        reasonHeading.textContent = isError
-          ? 'Shubhalilikka ta’sir qilgan xususiyatlar'
-          : 'Risk bahosiga ta’sir qilgan xususiyatlar';
-        const reasons = document.createElement('ul');
-        reasons.className = 'reason-list';
-        for (const detail of details) {
-          const item = document.createElement('li');
-          item.className = 'reason-item';
-          if (detail.feature) {
-            const feature = document.createElement('strong');
-            feature.className = 'reason-feature';
-            const value = typeof detail.value === 'number'
-              ? new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 2 }).format(detail.value)
-              : detail.value;
-            feature.textContent = `${detail.feature}: ${value}`;
-            item.append(feature);
-          }
-          const description = document.createElement('p');
-          description.className = 'result-copy';
-          description.textContent = detail.description;
-          item.append(description);
-          if (detail.impact_percentage_points > 0) {
-            const impact = document.createElement('span');
-            impact.className = 'reason-impact';
-            impact.textContent = `Risk bahosiga ta’siri: +${detail.impact_percentage_points} foiz punkt`;
-            item.append(impact);
-          }
-          reasons.append(item);
-        }
-        const explanationNote = document.createElement('p');
-        explanationNote.className = 'result-copy reason-note';
-        explanationNote.textContent =
-          'Bu xususiyatlar model bahosiga ta’sirini ko‘rsatadi, firibgarlikni o‘zi isbotlamaydi.';
-        element.append(reasonHeading, reasons, explanationNote);
-      }
-    }
-
-    async function postJson(path, payload, token = null) {
-      let response;
-      try {
-        response = await fetch(path, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify(payload),
-        });
-      } catch (error) {
-        throw new Error(`API bilan bog‘lanib bo‘lmadi: ${error.message}`);
-      }
-
-      const body = await response.text();
-      let data;
-      try {
-        data = body ? JSON.parse(body) : null;
-      } catch {
-        const excerpt = body.trim().slice(0, 200);
-        throw new Error(
-          `API JSON qaytarmadi (HTTP ${response.status})${excerpt ? `: ${excerpt}` : '; javob bo‘sh'}`,
-        );
-      }
-
-      if (data === null) {
-        throw new Error(`API bo‘sh javob qaytardi (HTTP ${response.status})`);
-      }
-      if (!response.ok || data.error) {
-        const detail = data.detail
-          ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
-          : data.error;
-        throw new Error(detail || `HTTP ${response.status}`);
-      }
-      return data;
-    }
-
-    function renderTransactions() {
-      const list = document.querySelector('#activity-list');
-      list.innerHTML = '';
-      if (!transactions.length) {
-        list.innerHTML = '<p class="activity-empty">Hozircha tahlil yo‘q.</p>';
-        return;
-      }
-      for (const transaction of transactions) {
-        const row = document.createElement('div');
-        row.className = 'activity-row';
-        const label = document.createElement('span');
-        label.className = 'activity-label';
-        label.textContent = transaction.transaction_id
-          ? `Tranzaksiya #${transaction.transaction_id}`
-          : 'Yangi tranzaksiya';
-        const status = document.createElement('span');
-        const transactionStatus = String(transaction.transaction_status || transaction.status || '').toLowerCase();
-        const pending = transactionStatus === 'pending review';
-        const fraudulent = Boolean(transaction.is_fraud) || transactionStatus === 'fraud';
-        status.className = `activity-status ${pending ? 'pending' : fraudulent ? 'fraud' : 'legitimate'}`;
-        status.textContent = pending
-          ? 'Tekshiruvda'
-          : fraudulent ? 'Shubhali' : 'Ishonchli';
-        const meta = document.createElement('span');
-        meta.className = 'activity-meta';
-        meta.textContent = transaction.risk_score !== undefined && transaction.risk_score !== null
-          ? `Risk ${(Number(transaction.risk_score) * 100).toFixed(1)}%`
-          : `Risk darajasi: ${transaction.risk_level || 'Noma’lum'}`;
-        const amount = document.createElement('span');
-        amount.className = 'activity-amount';
-        amount.textContent = `${Number(transaction.amount).toLocaleString('uz-UZ')} ${transaction.currency}`;
-        row.append(label, status, meta, amount);
-        list.append(row);
-      }
-    }
-
-    document.querySelector('#transaction-form').addEventListener('submit', async (event) => {
+    document.querySelectorAll('[data-view]').forEach((button) => {
+      button.addEventListener('click', () => navigate(button.dataset.view, button.dataset.title));
+    });
+    document.querySelectorAll('[data-go]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const view = button.dataset.go;
+        navigate(view, ({ transfer: 'Pul o‘tkazish', cards: 'Kartalarim', transactions: 'Tranzaksiyalar', profile: 'Profilim' })[view] || 'Bosh sahifa');
+      });
+    });
+    document.querySelector('#profile-button').addEventListener('click', () => navigate('profile', 'Profilim'));
+    document.querySelector('#balance-toggle').addEventListener('click', (event) => {
+      state.balanceVisible = !state.balanceVisible;
+      const button = event.currentTarget;
+      button.setAttribute('aria-label', state.balanceVisible ? 'Balansni yashirish' : 'Balansni ko‘rsatish');
+      renderCards();
+    });
+    document.querySelector('#quick-sender-card').addEventListener('change', updateAvailableBalance);
+    document.querySelector('#full-sender-card').addEventListener('change', updateAvailableBalance);
+    document.querySelector('#quick-recipient').addEventListener('input', (event) => { event.currentTarget.value = formattedCard(event.currentTarget.value); });
+    document.querySelector('#full-recipient').addEventListener('input', (event) => { event.currentTarget.value = formattedCard(event.currentTarget.value); });
+    document.querySelector('#quick-transfer-form').addEventListener('submit', async (event) => {
       event.preventDefault();
-      const form = event.currentTarget;
-      const button = form.querySelector('button[type="submit"]');
-      const result = document.querySelector('#transaction-result');
-      button.disabled = true;
+      await submitTransfer(event.currentTarget);
+    });
+    document.querySelector('#full-transfer-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      await submitTransfer(event.currentTarget);
+    });
+    document.addEventListener('click', async (event) => {
+      const button = event.target.closest('[data-copy-card]');
+      if (!button) return;
       try {
-        const data = await postJson('/transaction/add/', {
-          sender_card_number: form.sender_card_number.value.replace(/\s/g, ''),
-          receiver_card_number: form.receiver_card_number.value.replace(/\s/g, ''),
-          amount: Number(form.amount.value),
-          currency: form.currency.value,
-          country: form.country.value.trim(),
-          city: form.city.value.trim(),
-          transactions_last_10_min: Number(form.transactions_last_10_min.value),
-          is_new_device: form.is_new_device.value === 'true',
-          step: Number(form.step.value),
-          type: form.type.value,
-          isFlaggedFraud: Number(form.isFlaggedFraud.value),
-        }, accessToken);
-        const transaction = {
-          ...data,
-          amount: Number(form.amount.value),
-          currency: form.currency.value,
-        };
-        transactions.unshift(transaction);
-        renderTransactions();
-        const transactionStatus = data.transaction_status || data.status || 'Noma’lum';
-        const pending = String(transactionStatus).toLowerCase() === 'pending review';
-        const verdict = pending
-          ? 'Tranzaksiya tekshiruvda'
-          : data.is_fraud ? 'Shubhali tranzaksiya' : 'Tranzaksiya ishonchli';
-        const summary = [
-          data.transaction_id ? `ID ${data.transaction_id}` : null,
-          data.risk_score !== undefined && data.risk_score !== null
-            ? `Risk ${(Number(data.risk_score) * 100).toFixed(1)}%`
-            : data.risk_level ? `Risk darajasi: ${data.risk_level}` : null,
-          `Holat: ${transactionStatus}`,
-        ].filter(Boolean).join(' • ');
-        showResult(
-          result,
-          verdict,
-          summary,
-          Boolean(data.is_fraud) && !pending,
-          Array.isArray(data.reasons) ? data.reasons : [],
-        );
+        await navigator.clipboard.writeText(button.dataset.copyCard);
+        showToast('Karta raqami nusxalandi', 'Rekvizitni kerakli joyga joylashing.');
       } catch (error) {
-        showResult(result, 'Tahlil bajarilmadi', error.message, true);
-      } finally {
-        button.disabled = false;
+        showToast('Nusxalab bo‘lmadi', 'Brauzer clipboard ruxsatini tekshiring.', true);
       }
     });
+    document.querySelector('#history-search').addEventListener('input', renderTransactions);
+    document.querySelector('#history-filter').addEventListener('change', renderTransactions);
+    document.querySelector('#overview-search').addEventListener('input', (event) => {
+      const query = event.currentTarget.value.trim().toLowerCase();
+      const filtered = state.transactions.filter((transaction) =>
+        `${transaction.transaction_id} ${transaction.sender} ${transaction.receiver} ${transaction.city}`.toLowerCase().includes(query)
+      ).slice(0, 5);
+      const list = document.querySelector('#recent-list');
+      list.replaceChildren();
+      if (!filtered.length) setEmpty(list, query ? 'Mos operatsiya topilmadi.' : 'Hozircha operatsiyalar mavjud emas.');
+      else for (const transaction of filtered) list.append(transactionRow(transaction, true));
+    });
 
-    fetch('/openapi.json').then((response) => {
-      if (!response.ok) throw new Error();
-      apiState.textContent = 'ulangan';
-    }).catch(() => { apiState.textContent = 'mavjud emas'; });
+    loadDashboard();
   </script>
 </body>
 </html>
