@@ -70,23 +70,81 @@ trains on a fraction of the training rows per model, so compare its evaluation
 metrics with prior results before using it in production.
 
 `app.ml.predict.predict_transaction(data)` loads
-`app/ml/cuda_train_fast.pkl` on first use and returns a fraud `risk_score` and
-`is_fraud` decision. The version-3 CUDA artifact uses only the PaySim fields
+`app/ml/cuda_train_fast.pkl` on first use and returns the raw model probability
+(`model_risk_score`), trained fraud threshold (`fraud_threshold`), contextual
+risk (`contextual_risk_score`), combined review risk (`risk_score`), and the
+model-only `is_fraud` decision. The version-3 CUDA artifact uses only the PaySim fields
 shared with the transaction API: `step`, `amount`, `oldbalanceOrg`,
 `oldbalanceDest`, `isFlaggedFraud`, and categorical `type`. Other API fields
 such as currency, country, city, recent transaction count, and device status
-are stored with the transaction but are not model inputs because the current
-PaySim training dataset does not contain them.
+are not learned model inputs because the current PaySim training dataset does
+not contain them. Recent-transaction and device data now feed the separate,
+explicit contextual risk overlay described below.
 The response includes up to three model-based reasons, each identifying the
 feature, its transaction value, the comparison baseline, and its impact on the
 risk score. The frontend shows these under “Shubhalilikka ta’sir qilgan
 xususiyatlar”. These indicate model influence, not proof of fraud or causal
 explanations.
 `POST /transaction/add/` accepts sender/receiver cards and transaction
-context, along with `step`, `type`, and `isFlaggedFraud`. The API obtains
-`oldbalanceOrg` and `oldbalanceDest` from the sender and receiver account
-balances and passes those values to prediction. The response includes the
-transaction ID, risk score, fraud decision, and review/completion status.
+context. The API obtains `oldbalanceOrg` and `oldbalanceDest` from the sender
+and receiver card balances, sets the transfer type and PaySim-range hour
+bucket itself, and does not accept caller-supplied fraud flags or device/
+velocity values. Its response returns model probability, contextual score,
+combined risk, both thresholds, and the final review status. It counts this
+user's transactions in the previous ten
+minutes from the database and compares a stable browser device ID (sent in
+`X-Device-ID`) against hashed, per-user device records. The user agent is
+stored as the device label; the browser ID itself is not stored. A new device
+and recent attempts contribute a documented contextual risk overlay. The
+current trained model still consumes only its PaySim training features; these
+additional context signals are applied outside the model until a model is
+retrained on representative device/velocity data. The `step` value is
+generated from the current UTC hour and wrapped into the model's 1–744 range.
+The overlay score is the
+maximum of the model probability and a capped context score: 0.20 for a new
+device plus 0.10 per preceding transaction in the last ten minutes (maximum
+0.70). Scores of 0.50 or higher are held for review; model-positive transfers
+are always held.
+
+The recipient-card lookup endpoint returns only the cardholder's first name
+and last-name initial. The dashboard displays that name after a valid card
+number is entered.
+
+### Telegram review and approval
+
+For private admin alerts and the approve/contact buttons, configure the
+following private environment variables:
+
+```text
+TELEGRAM_BOT_TOKEN=<bot token>
+TELEGRAM_ADMIN_ID=<numeric admin chat/user ID>
+TELEGRAM_WEBHOOK_URL=https://<public-host>/telegram/webhook
+TELEGRAM_WEBHOOK_SECRET=<random secret of at least 32 characters>
+```
+
+Generate a Telegram webhook secret, for example, with
+`openssl rand -hex 32`.
+The admin must start the bot once in a private chat before the bot can message
+them. The application registers the webhook at startup. The webhook requires
+Telegram's secret-token header and accepts callbacks only from the configured
+admin in the admin's private chat. A suspicious transfer remains pending and
+does not reserve or debit balance. The alert includes the sender's name and
+phone, card suffixes, recipient name, location, recent-attempt count, device
+label, and risk reasons. The admin can retrieve the phone number from the
+contact button and must independently call and verify the customer before
+pressing the approval button. That one-time action atomically debits and
+credits the internal account balances and records the admin decision.
+Notification failures are logged and surfaced in the transfer response.
+The alert separates model probability and its trained fraud threshold from
+the context score and final review risk, and lists the actual feature values
+passed to the model. Combined risk is the maximum of model probability and
+context score; it is held for review at 50%, while the model fraud verdict
+uses the threshold stored in the trained artifact.
+
+This repository implements a local demo ledger, not settlement through a
+real bank or card network. The Telegram approval must not be used to move
+real funds without a bank's authenticated identity-verification process,
+authorization controls, and payment-rail integration.
 
 ### User login and banking dashboard
 
@@ -102,6 +160,9 @@ user's active card numbers, cardholder names, and balances, and
 Transfers send the selected `sender_card_id` to `POST /transaction/add/`.
 The frontend has separate `/login/` and `/register/` pages; the protected
 dashboard is served at `/`.
+Registration and login pages display `+998` as a fixed phone prefix and ask
+the user to enter only the remaining nine digits; both submit the normalized
+`+998XXXXXXXXX` number to the API.
 Set a private `JWT_SECRET_KEY` in the project `.env` before starting the API;
 generate a strong value with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
 The token is required for transfers and transaction-detail requests, and a

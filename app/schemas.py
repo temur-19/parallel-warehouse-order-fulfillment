@@ -3,20 +3,17 @@ from decimal import Decimal
 
 
 class TransactionCreate(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
     sender_card_id: int = Field(gt=0)
     receiver_card_number: str = Field(pattern=r"^\d{16}$")
     amount: float = Field(ge=1000, allow_inf_nan=False)
     currency: str = "UZS"
     country: str = Field(min_length=2, max_length=100)
     city: str = Field(min_length=2, max_length=100)
-    transactions_last_10_min: int = Field(default=0, ge=0)
-    is_new_device: bool = False
-    step: int = Field(default=1, ge=0)
-    type: str = "TRANSFER"
-    is_flagged_fraud: int = Field(
-        default=0, ge=0, le=1, alias="isFlaggedFraud"
-    )
+
+
+class RecipientLookup(BaseModel):
+    card_number: str = Field(pattern=r"^\d{16}$")
 
 
 class UserCreate(BaseModel):

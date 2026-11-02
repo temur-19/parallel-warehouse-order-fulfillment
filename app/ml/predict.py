@@ -21,6 +21,19 @@ class PredictionReason(TypedDict):
     description: str
 
 
+class PredictionResult(TypedDict):
+    risk_score: float
+    model_risk_score: float
+    contextual_risk_score: float
+    fraud_threshold: float
+    review_threshold: float
+    is_fraud: bool
+    reasons: list[PredictionReason]
+
+
+REVIEW_RISK_THRESHOLD = 0.50
+
+
 class _CudaFraudModel(nn.Module):
     def __init__(
         self,
@@ -75,6 +88,11 @@ FEATURE_LABELS = {
     "oldbalanceOrg": "Jo'natuvchining avvalgi balansi",
     "oldbalanceDest": "Qabul qiluvchining avvalgi balansi",
     "isFlaggedFraud": "Manbadagi firibgarlik belgisi",
+}
+
+CONTEXT_FEATURE_LABELS = {
+    "is_new_device": "Yangi qurilma",
+    "transactions_last_10_min": "Oxirgi 10 daqiqadagi urinishlar",
 }
 
 
@@ -142,7 +160,7 @@ def _load_model() -> _LoadedModel:
 
 async def predict_transaction(
     data: Mapping[str, Any], fraud_threshold: float | None = None
-) -> dict[str, float | bool | list[PredictionReason]]:
+) -> PredictionResult:
     trained = _load_model()
     threshold = (
         trained.fraud_threshold if fraud_threshold is None else fraud_threshold
@@ -173,6 +191,17 @@ async def predict_transaction(
             "must be a string."
         )
 
+    recent_transaction_count = data.get("transactions_last_10_min", 0)
+    is_new_device = data.get("is_new_device", False)
+    if (
+        isinstance(recent_transaction_count, bool)
+        or not isinstance(recent_transaction_count, int)
+        or recent_transaction_count < 0
+    ):
+        raise ValueError("transactions_last_10_min must be a non-negative integer.")
+    if not isinstance(is_new_device, bool):
+        raise ValueError("is_new_device must be a boolean.")
+
     numeric_tensor = torch.tensor(numeric_values, dtype=torch.float32)
     normalized_features = (
         numeric_tensor - trained.means
@@ -182,7 +211,7 @@ async def predict_transaction(
 
     with torch.inference_mode():
         logits = trained.model(normalized_features.unsqueeze(0), category_tensor)
-        risk_score = float(torch.sigmoid(logits)[0].item())
+        model_risk_score = float(torch.sigmoid(logits)[0].item())
 
         feature_count = len(trained.numeric_features)
         counterfactual_features = normalized_features.repeat(feature_count + 1, 1)
@@ -205,11 +234,11 @@ async def predict_transaction(
             FEATURE_LABELS.get(feature, feature),
             numeric_values[index],
             float(trained.means[index].item()),
-            risk_score - float(counterfactual_scores[index].item()),
+            model_risk_score - float(counterfactual_scores[index].item()),
         )
         for index, feature in enumerate(trained.numeric_features)
     ]
-    category_impact = risk_score - float(counterfactual_scores[-1].item())
+    category_impact = model_risk_score - float(counterfactual_scores[-1].item())
     impacts.append(
         (
             trained.category_feature,
@@ -252,8 +281,58 @@ async def predict_transaction(
             }
         )
 
+    contextual_risk = min(
+        0.70,
+        (0.20 if is_new_device else 0.0)
+        + min(recent_transaction_count, 5) * 0.10,
+    )
+    risk_score = max(model_risk_score, contextual_risk)
+    contextual_impact_ratio = (
+        max(0.0, contextual_risk - model_risk_score) / contextual_risk
+        if contextual_risk
+        else 0.0
+    )
+    if is_new_device:
+        reasons.append(
+            {
+                "feature": CONTEXT_FEATURE_LABELS["is_new_device"],
+                "value": "Ha",
+                "baseline": None,
+                "impact_percentage_points": round(
+                    0.20 * contextual_impact_ratio * 100, 1
+                ),
+                "description": (
+                    "Qurilma ushbu foydalanuvchi uchun bazada avval "
+                    "ro‘yxatdan o‘tmagan."
+                ),
+            }
+        )
+    if recent_transaction_count:
+        reasons.append(
+            {
+                "feature": CONTEXT_FEATURE_LABELS["transactions_last_10_min"],
+                "value": recent_transaction_count,
+                "baseline": 0,
+                "impact_percentage_points": round(
+                    min(recent_transaction_count, 5)
+                    * 0.10
+                    * contextual_impact_ratio
+                    * 100,
+                    1,
+                ),
+                "description": (
+                    "Qiymat ushbu foydalanuvchining oxirgi 10 daqiqadagi "
+                    "urinishlari sonidan olindi."
+                ),
+            }
+        )
+
     return {
         "risk_score": risk_score,
-        "is_fraud": risk_score >= threshold,
+        "model_risk_score": model_risk_score,
+        "contextual_risk_score": contextual_risk,
+        "fraud_threshold": threshold,
+        "review_threshold": REVIEW_RISK_THRESHOLD,
+        "is_fraud": model_risk_score >= threshold,
         "reasons": reasons,
     }

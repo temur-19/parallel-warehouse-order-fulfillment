@@ -447,6 +447,7 @@
                   <div class="field">
                     <label for="quick-recipient">Qabul qiluvchi karta</label>
                     <input id="quick-recipient" name="receiver_card_number" inputmode="numeric" autocomplete="off" maxlength="19" placeholder="8600 0000 0000 0000" required>
+                    <p class="field-hint" data-recipient-name aria-live="polite"></p>
                   </div>
                   <div class="field">
                     <label for="quick-amount">O‘tkazma summasi</label>
@@ -486,6 +487,7 @@
                   <div class="field full">
                     <label for="full-recipient">Qabul qiluvchining karta raqami</label>
                     <input id="full-recipient" name="receiver_card_number" inputmode="numeric" autocomplete="off" maxlength="19" placeholder="8600 0000 0000 0000" required>
+                    <p class="field-hint" data-recipient-name aria-live="polite"></p>
                   </div>
                   <div class="field full amount-field">
                     <label for="full-amount">O‘tkazma summasi</label>
@@ -618,10 +620,22 @@
   <script>
     const token = sessionStorage.getItem('accessToken');
     const state = { cards: [], transactions: [], profile: null, balance: null, balanceVisible: true, toastTimer: null };
+    const recipientLookupTimers = new WeakMap();
     const money = new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 });
     const dateFormat = new Intl.DateTimeFormat('uz-Latn-UZ', { day: '2-digit', month: 'short', year: 'numeric' });
 
     if (!token) window.location.replace('/login/');
+
+    function getDeviceId() {
+      const key = 'flowlineDeviceId';
+      let id = localStorage.getItem(key);
+      if (!id) {
+        if (!globalThis.crypto?.randomUUID) throw new Error('Qurilma identifikatorini yaratib bo‘lmadi.');
+        id = globalThis.crypto.randomUUID();
+        localStorage.setItem(key, id);
+      }
+      return id;
+    }
 
     async function api(path, options = {}) {
       let response;
@@ -631,6 +645,7 @@
           headers: {
             ...(options.body ? { 'Content-Type': 'application/json' } : {}),
             Authorization: `Bearer ${token}`,
+            'X-Device-ID': getDeviceId(),
             ...options.headers,
           },
         });
@@ -872,6 +887,32 @@
     function digitsOnly(value) { return value.replace(/\D/g, '').slice(0, 16); }
     function formattedCard(value) { return digitsOnly(value).replace(/(\d{4})(?=\d)/g, '$1 '); }
 
+    function scheduleRecipientLookup(input) {
+      const hint = input.closest('.field').querySelector('[data-recipient-name]');
+      const cardNumber = digitsOnly(input.value);
+      clearTimeout(recipientLookupTimers.get(input));
+      if (cardNumber.length !== 16) {
+        hint.textContent = '';
+        return;
+      }
+      hint.textContent = 'Karta egasi tekshirilmoqda...';
+      recipientLookupTimers.set(input, setTimeout(async () => {
+        try {
+          const result = await api('/transaction/recipient/lookup/', {
+            method: 'POST',
+            body: JSON.stringify({ card_number: cardNumber }),
+          });
+          if (digitsOnly(input.value) === cardNumber) {
+            hint.textContent = `Karta egasi: ${result.cardholder_name}`;
+          }
+        } catch {
+          if (digitsOnly(input.value) === cardNumber) {
+            hint.textContent = 'Karta egasini aniqlab bo‘lmadi.';
+          }
+        }
+      }, 350));
+    }
+
     async function submitTransfer(form) {
       const submit = form.querySelector('button[type="submit"]');
       const senderCardId = Number(form.elements.sender_card_id.value);
@@ -898,16 +939,17 @@
             currency: 'UZS',
             country,
             city,
-            transactions_last_10_min: 0,
-            is_new_device: false,
           }),
         });
         const isPending = String(result.transaction_status || '').toLowerCase().includes('pending');
         showToast(
           isPending ? 'O‘tkazma tekshiruvda' : 'O‘tkazma qabul qilindi',
           isPending
-            ? `Tranzaksiya #${result.transaction_id} xavfsizlik tekshiruvidan o‘tmoqda. Mablag‘ hozircha balansda qoladi.`
+            ? result.admin_notified === false
+              ? `Tranzaksiya #${result.transaction_id} tekshiruvda, ammo admin xabari yuborilmadi. Qo‘llab-quvvatlashga murojaat qiling.`
+              : `Tranzaksiya #${result.transaction_id} xavfsizlik tekshiruvidan o‘tmoqda. Mablag‘ hozircha balansda qoladi.`
             : `Tranzaksiya #${result.transaction_id} muvaffaqiyatli bajarildi.`,
+          isPending && result.admin_notified === false,
         );
         form.reset();
         await loadDashboard();
@@ -979,8 +1021,14 @@
     });
     document.querySelector('#quick-sender-card').addEventListener('change', updateAvailableBalance);
     document.querySelector('#full-sender-card').addEventListener('change', updateAvailableBalance);
-    document.querySelector('#quick-recipient').addEventListener('input', (event) => { event.currentTarget.value = formattedCard(event.currentTarget.value); });
-    document.querySelector('#full-recipient').addEventListener('input', (event) => { event.currentTarget.value = formattedCard(event.currentTarget.value); });
+    document.querySelector('#quick-recipient').addEventListener('input', (event) => {
+      event.currentTarget.value = formattedCard(event.currentTarget.value);
+      scheduleRecipientLookup(event.currentTarget);
+    });
+    document.querySelector('#full-recipient').addEventListener('input', (event) => {
+      event.currentTarget.value = formattedCard(event.currentTarget.value);
+      scheduleRecipientLookup(event.currentTarget);
+    });
     document.querySelector('#quick-transfer-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       await submitTransfer(event.currentTarget);

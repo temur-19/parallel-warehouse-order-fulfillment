@@ -25,6 +25,11 @@
     label { color:#43514c; font-size:12px; font-weight:600; }
     input { width:100%; min-height:44px; padding:10px 12px; border:1px solid #dbe4dc; border-radius:5px; outline:none; }
     input:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(23,107,82,.11); }
+    .phone-input { display:flex; min-height:44px; overflow:hidden; border:1px solid #dbe4dc; border-radius:5px; background:white; }
+    .phone-input:focus-within { border-color:var(--green); box-shadow:0 0 0 3px rgba(23,107,82,.11); }
+    .phone-prefix { display:flex; align-items:center; padding:0 12px; border-right:1px solid #e6ece7; color:#43514c; font-size:14px; font-weight:600; }
+    .phone-input input { min-width:0; min-height:42px; border:0; border-radius:0; box-shadow:none; }
+    .phone-input input:focus { border:0; box-shadow:none; }
     .primary { width:100%; min-height:44px; border:0; border-radius:5px; background:var(--green); color:white; font-weight:700; cursor:pointer; }
     .primary:disabled { cursor:wait; opacity:.65; }
     .result { margin-top:18px; padding:14px; border-left:3px solid var(--green); background:#eff7ec; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
@@ -46,10 +51,10 @@
     <p class="subtitle">Hisobingizga kirish uchun telefon raqamingiz va parolingizni kiriting.</p>
     <section class="panel">
       <div class="panel-body">
-        <form id="login-form">
+        <form id="login-form" autocomplete="off">
           <div class="field">
             <label for="phone">Telefon raqami</label>
-            <input id="phone" name="phone" type="tel" maxlength="13" placeholder="+998901234567" autocomplete="username" required>
+            <input id="phone" name="phone" type="tel" maxlength="13" autocomplete="off" placeholder="+998 90 123 45 67" required>
           </div>
           <div class="field">
             <label for="password">Parol</label>
@@ -68,10 +73,39 @@
     const existingToken = sessionStorage.getItem('accessToken');
     if (existingToken) window.location.replace('/');
     const phoneField = document.querySelector('#phone');
-    phoneField.value = new URLSearchParams(window.location.search).get('phone') || '';
+
+    function phoneDigits(value) {
+      let digits = value.replace(/\D/g, '');
+      if (digits.startsWith('998') && digits.length > 9) digits = digits.slice(3);
+      if (digits.startsWith('0') && digits.length > 9) digits = digits.slice(1);
+      return digits.slice(0, 9);
+    }
+
+    function formatLocalPhone(value) {
+      const digits = phoneDigits(value);
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 7)} ${digits.slice(7)}`;
+    }
+
+    phoneField.value = formatLocalPhone(
+      new URLSearchParams(window.location.search).get('phone') || '',
+    );
+    phoneField.addEventListener('input', () => {
+      phoneField.value = formatLocalPhone(phoneField.value);
+    });
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const localPhone = phoneDigits(phoneField.value);
+      if (localPhone.length !== 9) {
+        result.textContent = 'Telefon raqamini +998 dan keyin 9 ta raqam bilan kiriting.';
+        result.classList.add('error');
+        result.hidden = false;
+        phoneField.focus();
+        return;
+      }
       const button = form.querySelector('button[type="submit"]');
       button.disabled = true;
       result.hidden = true;
@@ -80,7 +114,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            phone: phoneField.value.trim(),
+            phone: `+998${localPhone}`,
             password: form.password.value,
           }),
         });

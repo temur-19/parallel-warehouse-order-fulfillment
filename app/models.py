@@ -1,4 +1,14 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Numeric
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Float,
+    DateTime,
+    ForeignKey,
+    Boolean,
+    Numeric,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column , relationship
 from datetime import datetime, timezone
 import random
@@ -90,8 +100,8 @@ class FraudResult(Base):
     )
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
     )
 
     transaction: Mapped["Transaction"] = relationship(
@@ -107,3 +117,43 @@ class Fraud_cases(Base):
     transaction_id:Mapped[int] = mapped_column(ForeignKey('transactions.id'), nullable=False, index=True)
     risk_score:Mapped[str] = mapped_column(String)
     status:Mapped[str] = mapped_column(String)
+
+
+class UserDevice(Base):
+    __tablename__ = "user_devices"
+    __table_args__ = (
+        UniqueConstraint("user_id", "device_hash", name="uq_user_device_hash"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
+    device_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    device_name: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class TransactionReview(Base):
+    __tablename__ = "transaction_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    transaction_id: Mapped[int] = mapped_column(
+        ForeignKey("transactions.id"), nullable=False, unique=True, index=True
+    )
+    admin_telegram_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    decision: Mapped[str] = mapped_column(String(30), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )

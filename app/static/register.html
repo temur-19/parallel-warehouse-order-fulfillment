@@ -27,6 +27,11 @@
     label { color:#43514c; font-size:12px; font-weight:600; }
     input { width:100%; min-height:44px; padding:10px 12px; border:1px solid #dbe4dc; border-radius:5px; outline:none; }
     input:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(23,107,82,.11); }
+    .phone-input { display:flex; min-height:44px; overflow:hidden; border:1px solid #dbe4dc; border-radius:5px; background:white; }
+    .phone-input:focus-within { border-color:var(--green); box-shadow:0 0 0 3px rgba(23,107,82,.11); }
+    .phone-prefix { display:flex; align-items:center; padding:0 12px; border-right:1px solid #e6ece7; color:#43514c; font-size:14px; font-weight:600; }
+    .phone-input input { min-width:0; min-height:42px; border:0; border-radius:0; box-shadow:none; }
+    .phone-input input:focus { border:0; box-shadow:none; }
     .primary { width:100%; min-height:44px; margin-top:21px; border:0; border-radius:5px; background:var(--green); color:white; font-weight:700; cursor:pointer; }
     .primary:disabled { cursor:wait; opacity:.65; }
     .result { margin-top:18px; padding:14px; border-left:3px solid var(--green); background:#eff7ec; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
@@ -48,19 +53,22 @@
     <p class="subtitle">Hisob oching. Tizimga telefon raqamingiz orqali kirasiz.</p>
     <section class="panel">
       <div class="panel-body">
-        <form id="register-form">
+        <form id="register-form" autocomplete="off">
           <div class="grid">
             <div class="field">
               <label for="first-name">Ism</label>
-              <input id="first-name" name="first_name" autocomplete="given-name" required>
+              <input id="first-name" name="first_name" autocomplete="off" autocorrect="off" spellcheck="false" required>
             </div>
             <div class="field">
               <label for="last-name">Familiya</label>
-              <input id="last-name" name="last_name" autocomplete="family-name" required>
+              <input id="last-name" name="last_name" autocomplete="off" autocorrect="off" spellcheck="false" required>
             </div>
             <div class="field wide">
               <label for="phone">Telefon raqami</label>
-              <input id="phone" name="phone" type="tel" maxlength="13" placeholder="+998901234567" autocomplete="tel" required>
+              <div class="phone-input">
+                <span class="phone-prefix" aria-hidden="true">+998</span>
+                <input id="phone" name="phone" type="tel" inputmode="numeric" maxlength="12" placeholder="90 123 45 67" autocomplete="off" aria-label="Telefon raqami, 9 ta raqam" required>
+              </div>
             </div>
             <div class="field wide">
               <label for="password">Parol (kamida 8 belgi)</label>
@@ -68,7 +76,7 @@
             </div>
             <div class="field wide">
               <label for="balance">Boshlang‘ich balans</label>
-              <input id="balance" name="balance" type="number" min="0" step="0.01" value="1000000" required>
+              <input id="balance" name="balance" type="number" min="0" step="0.01" value="1000000" autocomplete="off" required>
             </div>
           </div>
           <button class="primary" type="submit">Hisob yaratish</button>
@@ -81,8 +89,38 @@
   <script>
     const form = document.querySelector('#register-form');
     const result = document.querySelector('#register-result');
+    const phoneField = document.querySelector('#phone');
+
+    function phoneDigits(value) {
+      let digits = value.replace(/\D/g, '');
+      if (digits.startsWith('998') && digits.length > 9) digits = digits.slice(3);
+      if (digits.startsWith('0') && digits.length > 9) digits = digits.slice(1);
+      return digits.slice(0, 9);
+    }
+
+    function formatLocalPhone(value) {
+      const digits = phoneDigits(value);
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 7)} ${digits.slice(7)}`;
+    }
+
+    phoneField.addEventListener('input', () => {
+      phoneField.value = formatLocalPhone(phoneField.value);
+    });
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const localPhone = phoneDigits(phoneField.value);
+      if (localPhone.length !== 9) {
+        result.classList.add('error');
+        result.textContent = 'Telefon raqamini +998 dan keyin 9 ta raqam bilan kiriting.';
+        result.hidden = false;
+        phoneField.focus();
+        return;
+      }
+      const fullPhone = `+998${localPhone}`;
       const button = form.querySelector('button[type="submit"]');
       button.disabled = true;
       result.hidden = true;
@@ -93,7 +131,7 @@
           body: JSON.stringify({
             first_name: form.first_name.value.trim(),
             last_name: form.last_name.value.trim(),
-            phone: form.phone.value.trim(),
+            phone: fullPhone,
             password: form.password.value,
             balance: Number(form.balance.value),
           }),
@@ -109,7 +147,7 @@
         result.textContent = `Hisob yaratildi. Tizimga kirish uchun telefon raqamingizdan foydalaning. Karta raqamingiz: ${cardNumber.replace(/(\d{4})(?=\d)/g, '$1 ')}.`;
         result.hidden = false;
         const loginLink = document.createElement('a');
-        loginLink.href = `/login/?phone=${encodeURIComponent(form.phone.value.trim())}`;
+        loginLink.href = `/login/?phone=${encodeURIComponent(fullPhone)}`;
         loginLink.textContent = ' Endi telefon raqamingiz bilan kiring.';
         result.append(loginLink);
         form.reset();
